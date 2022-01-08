@@ -5,10 +5,10 @@ from django.db import models
 # Mentee.id -> Mentee.menteeId : 헷갈릴 수 있어서
 # Manage.id -> Manage.adminId :    ''
 class User(models.Model):
-    studentId = models.AutoField(primary_key=True) # 학번
+    studentId = models.PositiveIntegerField(primary_key=True) # 학번
     userType = models.BooleanField(null=True) # true: 멘토, false: 멘티, null: 지정X
     registerDate = models.DateField(auto_now_add=True, auto_now=False)
-
+    
 class Mentor(models.Model):
     mentorId = models.AutoField(primary_key=True)
     userId = models.ForeignKey("User", on_delete=models.CASCADE)

@@ -19,5 +19,17 @@ from thanks import views
 
 urlpatterns = [
     path('', views.index),
+    path('createUser/', views.createUser),
+    path('create5Thanks/', views.create5Thanks),
+    path('create1Kind/', views.create1Kind),
+    path('create1Book/', views.create1Book),
+    path('create1Save/', views.create1Save),
+    path('createContest/', views.createContest),
+    path('updateDocument/', views.updateDocument),
+    path('deleteDocument/', views.deleteDocument),
+    path('selectDocument/', views.selectDocument),
+    path('writeChat/', views.writeChat),
+    path('selectChat/', views.selectChat),
+    path('createSignup/', views.createSignup),
     path('admin/', admin.site.urls),
 ]

@@ -7,6 +7,7 @@ from datetime import datetime
 # Mentee.id -> Mentee.menteeId : 헷갈릴 수 있어서
 # Manage.id -> Manage.adminId :    ''
 # append Document.docType : 5감사, 선행, 독후감, 절약, 공모전 구분
+# remove Document.  year, month, day : 크게 필요 x
 
 class User(models.Model):
     userId = models.PositiveIntegerField(primary_key=True) # 학번
@@ -38,9 +39,6 @@ class Document(models.Model):
     docId = models.BigAutoField(primary_key=True)
     userId = models.ForeignKey("User", on_delete=models.CASCADE)
     category = models.CharField(max_length=20, null=True)
-    year = models.PositiveSmallIntegerField()
-    month = models.PositiveSmallIntegerField()
-    day = models.PositiveSmallIntegerField()
     registerDate = models.DateField(auto_now_add=True, auto_now=False)
     editedDate = models.DateField(auto_now=True, null=True)
     content = models.TextField()
@@ -48,12 +46,6 @@ class Document(models.Model):
     title = models.CharField(max_length=50)
     docType = models.PositiveSmallIntegerField() # 1: 5감사, 2: 선행, 3: 독후감, 4: 절약, 5: 공모전
     
-    def save(self, *args, **kwargs):
-        now = datetime.now()
-        self.year = now.strftime("%Y");
-        self.month = now.strftime("%m");
-        self.day = now.strftime("%d");
-        super().save(*args, **kwargs)
 
 class Comment(models.Model):
     commentId = models.AutoField(primary_key=True)

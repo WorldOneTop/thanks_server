@@ -1,6 +1,6 @@
 from django.shortcuts import render
 from django.http import HttpResponse
-from .models import User, Mentor, Mentee, Telegram, Document, Comment, Like, Manager, Signup
+from .models import User, Mentor, Mentee, Telegram, Document, Manager, Signup
 import json
 from django.db.models.functions import Cast
 from django.db.models import TextField
@@ -26,20 +26,20 @@ def createUser(request): # args : {userId: 8자리 숫자 }
     return HttpResponse('{"status":"OK"}') # return : {"status": OK or error msg}
 
 
-def create5Thanks(request):# args : userId, data:'[{"title": ,"content": }]'
+def create5Thanks(request):# args : userId, data:'["content~", ...]'
     try:
         data = json.loads(request.GET['data'])
         checkData = ""
         userId = User.objects.get(pk=request.GET['userId'])
         inputData = [] # 필요한 인수만 넣기 위해서
-        
+
         for val in data:
-            checkData = checkDocument(**val)
-            if(checkData != "OK"):
-                return HttpResponse('{"status":"'+checkData+'"}')
-            inputData.append({'userId':userId, 'docType':1, 'title':val['title'], 'content':val['content']})
+            if(not val):
+                return HttpResponse('{"status":"content is empty"}')
+            inputData.append({'userId':userId, 'docType':1, 'content':val})
         
         for val in inputData:
+            print(val)
             Document.objects.create(**val)
         
     except ValueError:
@@ -52,16 +52,18 @@ def create5Thanks(request):# args : userId, data:'[{"title": ,"content": }]'
     return HttpResponse('{"status":"OK"}')
 
 # type 별로 통합적으로 생성  2: 선행, 3: 독후감, 4: 절약, 5: 공모전
-def create1Doc(request):
+def create1Doc(request): # agrgs : userId, docType, content, fileUrl?
     try:
+        if(request.GET['docType'] == "1"):
+            return HttpResponse('{"status":"not this url"}')
+        
         catchError = checkDocument(**(request.GET.dict()))
         if(catchError != "OK"):
             return HttpResponse('{"status":"'+catchError+'"}')
         
-        data = {'docType': request.GET['docType'], 'title':request.GET['title'], 'content':request.GET['content']}
-        data['userId'] = User.objects.get(pk=data['userId'])
+        data = {'userId':User.objects.get(pk=request.GET['userId']), 'docType': request.GET['docType'], 'content':request.GET['content']}
         
-        if(data['docType'] == 2):
+        if(data['docType'] == "2"):
             if(not 'fileUrl' in request.GET):
                 return HttpResponse('{"status":"required fileUrl"}')
             data['fileUrl'] = request.GET['fileUrl']
@@ -140,18 +142,17 @@ def createSignup(request):
     return HttpResponse("hello world")
 
 
-# 멘토or매니저or본인일 경우만 해줘야하지만 본인임을 증명할 수단이 없기에 인증없이
 def selectDocument(request): # args : userId, date:yyyy-mm-dd
     try:
         yearMonth = request.GET['date'][0:8]
         result = list(Document.objects.filter(userId=User.objects.get(
             pk=request.GET['userId']), registerDate=request.GET['date'],
             docType__gte=1, docType__lt=5).exclude(docType=3).values(
-                'docType','title','content','fileUrl'
+                'docType','content','fileUrl'
         ))
         book =  Document.objects.filter(userId=User.objects.get(
             pk=request.GET['userId']), docType=3, registerDate__range=[(yearMonth+"01"), (yearMonth+"31")]).values(
-            'docType','title','content','fileUrl'
+            'docType','content','fileUrl'
         )
         if(len(book) == 1): # 한달에 한권만 등록
             result.append(book[0])
@@ -175,20 +176,10 @@ def checkDocument(**kwargs):
         return "document id is not int"
     if('userId' in kwargs and not checkId(kwargs['userId'])):
         return "user id is not matched format"
-    if('category' in kwargs and len(kwargs['category']) > 20):
-        return "category out of max length"
-    if('year' in kwargs and not('2000' < kwargs['year'] and kwargs['year'] < '2100')):
-        return "year out of range"
-    if('month' in kwargs and not('1' <= kwargs['month'] and kwargs['month'] <= '12')):
-        return "month out of range"
-    if('day' in kwargs and not('1' <= kwargs['day'] and kwargs['day'] <= '31')):
-        return "day out of range"
     if('content' in kwargs and not kwargs['content']):
         return "content is empty"
-    if('fileUrl' in kwargs and not kwargs['fileUrl']):
-        return "file url is empty"
-    if('title' in kwargs and not kwargs['title'] or 50 < len(kwargs['title'])):
-        return "title is empty or too long"
+    # if('fileUrl' in kwargs and not kwargs['fileUrl']): # 파일은 다른 처리 필요
+    #     return "file url is empty"
     if('docType' in kwargs and not('1' <= kwargs['docType'] and kwargs['docType'] <= '5')):
         return "document type is not matched format"
     return "OK"

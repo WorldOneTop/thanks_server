@@ -38,27 +38,18 @@ class Telegram(models.Model):
 class Document(models.Model):
     docId = models.BigAutoField(primary_key=True)
     userId = models.ForeignKey("User", on_delete=models.CASCADE)
-    category = models.CharField(max_length=20, null=True)
     registerDate = models.DateField(auto_now_add=True, auto_now=False)
-    editedDate = models.DateField(auto_now=True, null=True)
     content = models.TextField()
-    fileUrl = models.CharField(max_length=50, null=True)
-    title = models.CharField(max_length=50)
-    docType = models.PositiveSmallIntegerField() # 1: 5감사, 2: 선행, 3: 독후감, 4: 절약, 5: 공모전
-    
+    docType = models.PositiveSmallIntegerField() # 1: 5감사, 2: 선행, 3: 독후감, 4: 절약
+    fileUrl = models.ImageField(upload_to="%Y-%m", null=True)
 
-class Comment(models.Model):
-    commentId = models.AutoField(primary_key=True)
-    docId  = models.ForeignKey("Document", on_delete=models.CASCADE)
+class Contest(models.Model):
+    contentId = models.AutoField(primary_key=True)
     userId = models.ForeignKey("User", on_delete=models.CASCADE)
     registerDate = models.DateField(auto_now_add=True, auto_now=False)
-    editedDate = models.DateField(auto_now=True, null=True)
-    comment = models.CharField(max_length=100)
-
-class Like(models.Model):
-    likeId = models.AutoField(primary_key=True)
-    docId =  models.ForeignKey("Document", on_delete=models.CASCADE)
-    userId = models.ForeignKey("User", on_delete=models.CASCADE)
+    content = models.TextField()
+    title = models.CharField(max_length=50)
+    fileUrl = models.ImageField(upload_to="contest/", null=True)
     
 class Manager(models.Model):
     adminId = models.CharField(max_length=20, primary_key=True)

@@ -8,6 +8,9 @@ from django.conf import settings
 urlpatterns = [
     path('', views.index),
     path('admin/', views.admin),
+    path('login/', views.login),
+    path('checkLogin/', views.checkLogin),
+    path('signupList/', views.signupList),
     path('createUser/', views.createUser),
     path('create5Thanks/', views.create5Thanks),
     path('create1Doc/', views.create1Doc),
@@ -17,4 +20,5 @@ urlpatterns = [
     path('writeChat/', views.writeChat),
     path('readChat/', views.readChat),
     path('createSignup/', views.createSignup),
+    path('signupList/acceptSignup', views.acceptSignup),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

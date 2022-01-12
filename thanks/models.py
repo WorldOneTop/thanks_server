@@ -1,31 +1,29 @@
 from django.db import models
 from datetime import datetime
 
-# User.studentId -> User.userId : 통일성 위해서
-# User.type -> User.userType : python은 type이 keyword
-# Signup.type -> Signup.userType :     ''
-# Mentee.id -> Mentee.menteeId : 헷갈릴 수 있어서
-# Manage.id -> Manage.adminId :    ''
-# append Document.docType : 5감사, 선행, 독후감, 절약, 공모전 구분
-# remove Document.  year, month, day : 크게 필요 x
-
 class User(models.Model):
     userId = models.PositiveIntegerField(primary_key=True) # 학번
+    name = models.CharField(max_length=5)
+    pw = models.CharField(max_length=20)
     userType = models.BooleanField(null=True) # true: 멘토, false: 멘티, null: 지정X
     registerDate = models.DateField(auto_now_add=True, auto_now=False)
+    activated = models.BooleanField(default=False)
     
 class Mentor(models.Model):
     mentorId = models.AutoField(primary_key=True)
     userId = models.ForeignKey("User", on_delete=models.CASCADE)
     year = models.PositiveSmallIntegerField()
     semester = models.PositiveSmallIntegerField() # 0동계, 1 1학기, 2하계 , 3 2학기
-
+    activated = models.BooleanField(default=False)
+    matchedNum = models.PositiveSmallIntegerField(default=0)
+    
 class Mentee(models.Model):
     menteeId = models.AutoField(primary_key=True)
     userId = models.ForeignKey("User", on_delete=models.CASCADE)
-    mentorId =  models.ForeignKey("Mentor", on_delete=models.CASCADE)
+    mentorId =  models.ForeignKey("Mentor", on_delete=models.CASCADE, null=True)
     year = models.PositiveSmallIntegerField()
     semester = models.PositiveSmallIntegerField() # 0동계, 1 1학기, 2하계 , 3 2학기
+    activated = models.BooleanField(default=False)
     
 class Telegram(models.Model):
     telegramId = models.AutoField(primary_key=True)
@@ -55,13 +53,16 @@ class Manager(models.Model):
     adminId = models.CharField(max_length=20, primary_key=True)
     pw = models.CharField(max_length=20)
     
+# 멘토 멘티 신청 리스트 신청내역에 쓸 내용이 없다면 테이블 삭제 가능
 class Signup(models.Model):
     userId = models.ForeignKey("User", on_delete=models.CASCADE)
     userType = models.BooleanField() # true: 멘토, false: 멘티
-    date = models.DateField(auto_now_add=True, auto_now=False)
-    content = models.CharField(max_length=100)
+    content = models.CharField(max_length=100,null=True)
 
-
+# 거절 사유
+class Reject(models.Model):
+    userId = models.PositiveIntegerField(primary_key=True) # 학번, fk아니라 별도 처리 필요
+    reason = models.CharField(max_length=100)
 
 """
 CREATE TABLE  User(

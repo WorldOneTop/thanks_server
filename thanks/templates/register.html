@@ -96,14 +96,14 @@
                             </div>
                             <span style="font-size: 0.9em;color: grey;">
                                 {% if type == '0' %} {{obj.registerDate}} {% else%} 
-                                활동 기간 : {{obj.year}}년도 {{obj.semester}}{% endif %} 
+                                활동 기간 : {{obj.term__year}}년도 {{obj.term__semester}}{% endif %} 
                                 
                             </span>
                         </div>
                         <div class="col position-absolute top-50 end-0 translate-middle-y me-2">
                             <button type="button" class="btn btn-primary" 
                                     onclick="location.href='./acceptSignup?signupType={{type}}&userId={{obj.userId}}'">승인</button>
-                            <button type="button" class="btn btn-secondary" onclick="">거절</button>
+                            <button type="button" class="btn btn-secondary" onclick="openReject();">거절</button>
                         </div>
                     </li>
                     {% endfor %}
@@ -116,19 +116,18 @@
                     <li class="list-group-item d-flex justify-content-between align-items-start">
                         <div class="ms-2 me-auto">
                             <div class="fw-bold">
-                                {% if type == '0' %} {{obj.name}} {% else%} {{obj.userId__name}} {% endif %} | {{obj.userId}}
+                                {{obj.userId__name}} | {{obj.userId}}
                             </div>
                             <span style="font-size: 0.9em;color: grey;">
-                                {% if type == '0' %} {{obj.registerDate}} {% else%} 
-                                활동 기간 : {{obj.year}}년도 {{obj.semester}}{% endif %} |
+                                
+                                활동 기간 : {{obj.term__year}}년도 {{obj.term__semester}} |
                                 멘티 수 : {{obj.matchedNum}}
                                 
                             </span>
                         </div>
                         <div class="col position-absolute top-50 end-0 translate-middle-y me-2">
                             <button type="button" class="btn btn-primary" 
-                                    onclick="location.href='./acceptSignup?signupType={{type}}&userId={{obj.userId}}'">승인</button>
-                            <button type="button" class="btn btn-secondary" onclick="">거절</button>
+                                    onclick="openSearch('멘티');">매칭</button>
                         </div>
                     </li>
                     {% endfor %}
@@ -140,26 +139,20 @@
                     <li class="list-group-item d-flex justify-content-between align-items-start">
                         <div class="ms-2 me-auto">
                             <div class="fw-bold">
-                                {% if type == '0' %} {{obj.name}} {% else%} {{obj.userId__name}} {% endif %} | {{obj.userId}}
+                                 {{obj.userId__name}} | {{obj.userId}}
                             </div>
                             <span style="font-size: 0.9em;color: grey;">
-                                {% if type == '0' %} {{obj.registerDate}} {% else%} 
-                                활동 기간 : {{obj.year}}년도 {{obj.semester}}{% endif %} 
+                                활동 기간 : {{obj.term__year}}년도 {{obj.term__semester}} 
                                 
                             </span>
                         </div>
                         <div class="col position-absolute top-50 end-0 translate-middle-y me-2">
                             <button type="button" class="btn btn-primary" 
-                                    onclick="location.href='./acceptSignup?signupType={{type}}&userId={{obj.userId}}'">승인</button>
-                            <button type="button" class="btn btn-secondary" onclick="">거절</button>
+                                    onclick="openSearch('멘토');">매칭</button>
                         </div>
                     </li>
                     {% endfor %}
                 </ol>
-                
-                
-                
-                
                 
                 
                 {% endif %}
@@ -171,6 +164,19 @@
     </div>
     <!-- Placeholder for footer -->
     <div class="bd-footer py-5 mt-5" style="height: 200px;"></div>
+    <script>
+        function openSearch(type){
+            var width = window.outerWidth / 5;
+            var height = window.outerHeight / 5;
+
+
+            window.open('/adminSearch?type='+type, 'search',
+                        'width='+(width*3)+', height='+ (height*3) +', scrollbars= 0, toolbar=0, menubar=no, left='+width+', top='+height);
+        }
+        function openReject(){
+            prompt('거절 사유');
+        }
+    </script>
 </body>
 
 </html>

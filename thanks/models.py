@@ -5,24 +5,21 @@ class User(models.Model):
     userId = models.PositiveIntegerField(primary_key=True) # 학번
     name = models.CharField(max_length=5)
     pw = models.CharField(max_length=20)
-    userType = models.BooleanField(null=True) # true: 멘토, false: 멘티, null: 지정X
     registerDate = models.DateField(auto_now_add=True, auto_now=False)
-    activated = models.BooleanField(default=False)
+    status = models.PositiveSmallIntegerField(default=0) # 0:가입X, 1:가입만, 2:멘토 신청대기, 3:멘티 신청대기, 4: 멘토, 5:멘티
     
 class Mentor(models.Model):
     mentorId = models.AutoField(primary_key=True)
     userId = models.ForeignKey("User", on_delete=models.CASCADE)
-    year = models.PositiveSmallIntegerField()
-    semester = models.PositiveSmallIntegerField() # 0동계, 1 1학기, 2하계 , 3 2학기
+    term = models.ForeignKey("Term", on_delete=models.CASCADE)
     activated = models.BooleanField(default=False)
     matchedNum = models.PositiveSmallIntegerField(default=0)
     
 class Mentee(models.Model):
     menteeId = models.AutoField(primary_key=True)
     userId = models.ForeignKey("User", on_delete=models.CASCADE)
+    term = models.ForeignKey("Term", on_delete=models.CASCADE)
     mentorId =  models.ForeignKey("Mentor", on_delete=models.CASCADE, null=True)
-    year = models.PositiveSmallIntegerField()
-    semester = models.PositiveSmallIntegerField() # 0동계, 1 1학기, 2하계 , 3 2학기
     activated = models.BooleanField(default=False)
     
 class Telegram(models.Model):
@@ -52,6 +49,23 @@ class Contest(models.Model):
 class Manager(models.Model):
     adminId = models.CharField(max_length=20, primary_key=True)
     pw = models.CharField(max_length=20)
+
+class Term(models.Model):# id가 기수
+    year = models.PositiveSmallIntegerField()
+    semester = models.CharField(max_length=5) # 동계, 1학기, 하계 , 2학기
+    startDate = models.DateField(auto_now_add=False, auto_now=False)
+    endDate = models.DateField(auto_now_add=False, auto_now=False)
+    activated = models.BooleanField(default=False,null=True) # null:활동종료, false: 모집중, true: 활동중
+    
+    def save(self, *args, **kwargs):
+        def save(self, *args, **kwargs):
+            if not User.objects.count():
+                self.id = 1
+            else:
+                self.id = User.objects.last().id + 1
+    
+        self.year = self.startDate[:4]
+        super().save(*args, **kwargs)
     
 # 멘토 멘티 신청 리스트 신청내역에 쓸 내용이 없다면 테이블 삭제 가능
 class Signup(models.Model):
@@ -63,102 +77,3 @@ class Signup(models.Model):
 class Reject(models.Model):
     userId = models.PositiveIntegerField(primary_key=True) # 학번, fk아니라 별도 처리 필요
     reason = models.CharField(max_length=100)
-
-"""
-CREATE TABLE  User(
-   studentId INT PRIMARY KEY, # 학번
-   type BOOLEAN DEFAULT NULL, # true: 멘토, false: 멘티, null: 지정X
-   registerDate DATE  DEFAULT NOW()
-);
-CREATE TABLE  Mentor(
-   mentorId AUTO_INCREMENT PRIMARY KEY,
-   userId INT NOT NULL,
-   year SMALLINT NOT NULL,
-   semester TINYINT(1) NOT NULL, # 0동계, 1 1학기, 2하계 , 3 2학기
-
-   FOREIGN KEY (userId)
-   REFERENCES User(studentId) ON DELETE CASCADE
-);
-CREATE TABLE  Mentee(
-   menteeId AUTO_INCREMENT PRIMARY KEY,
-   userId INT NOT NULL,
-   mentorId INT NOT NULL,
-   year SMALLINT NOT NULL,
-   semester TINYINT(1) NOT NULL, # 0동계, 1 1학기, 2하계 , 3 2학기
-
-   FOREIGN KEY (userId)
-   REFERENCES User(userId) ON DELETE CASCADE
-   FOREIGN KEY (mentorId)
-   REFERENCES Mentor(mentorId) ON DELETE CASCADE
-);
-CREATE TABLE  Telegram(
-   telegramId AUTO_INCREMENT PRIMARY KEY,
-   senderId INT NOT NULL,
-   receiverId INT NOT NULL,
-   date DATE  DEFAULT NOW()
-   read BOOLEAN DEFAULT FALSE,
-   content VARCHAR(100) NOT NULL,
-
-   FOREIGN KEY (senderId)
-   REFERENCES User(studentId) ON DELETE CASCADE   
-   FOREIGN KEY (receiverId)
-   REFERENCES User(studentId) ON DELETE CASCADE         
-);
-CREATE TABLE Document (
-   docId BIGINT AUTO_INCREMENT PRIMARY KEY,
-   userId INT NOT NULL,
-   category VARCHAR(20),
-   year SMALLINT NOT NULL,
-   month SMALLINT NOT NULL,
-   day SMALLINT NOT NULL,
-   registerDate DATE DEFAULT NOW(),
-   editedDate DATE,
-   content TEXT NOT NULL,
-   fileUrl VARCHAR(50),
-   title VARCHAR(50) NOT NULL
-
-   FOREIGN KEY (userId)
-   REFERENCES User(studentId) ON DELETE CASCADE
-);
-CREATE TABLE  Comment (
-   commentId AUTO_INCREMENT PRIMARY KEY,
-   docId BIGINT NOT NULL,
-   userId INT NOT NULL
-   registerDate DATE DEFAULT NOW(),
-   editedDate DATE,
-   comment VARCHAR(100)
-   
-   
-   FOREIGN KEY (docId)
-   REFERENCES Document(docId) ON DELETE CASCADE
-   FOREIGN KEY (userId)
-   REFERENCES User(studentId) ON DELETE CASCADE
-);
-CREATE TABLE  Like (
-   likeId AUTO_INCREMENT PRIMARY KEY,
-   docId BIGINT NOT NULL,
-   userId INT NOT NULL,
-
-   FOREIGN KEY (docId)
-   REFERENCES Document(docId) ON DELETE CASCADE
-   FOREIGN KEY (userId)
-   REFERENCES User(studentId) ON DELETE CASCADE
-);
-
-CREATE TABLE  Manager (
-   id VARCHAR(20) PRIMARY KEY,
-   pw VARCHAR(20) 
-);
-
-# 신청 관리
-CREATE TABLE  Signup(
-   id AUTO_INCREMENT PRIMARY KEY,
-   userId INT NOT NULL,
-   type BOOLEAN NOT NULL, # true: 멘토, false: 멘티
-   date DATE DEFAULT NOW(),
-   content VARCHAR(100)
-
-   FOREIGN KEY (userId)
-   REFERENCES User(studentId) ON DELETE CASCADE
-);
-"""

@@ -12,7 +12,7 @@
 
 </head>
 
-<body>
+<body style="padding-bottom:100px">
     <nav class="navbar navbar-expand-lg navbar-light bg-light">
         <div class="container-fluid">
             <a class="navbar-brand" href="#">감사운동</a>
@@ -91,6 +91,47 @@
                             매칭이 되지 않은 멘토&amp;멘티가 {{matchedCount}}명 있습니다.
                         </div>
                         <span class="badge bg-primary rounded-pill">{{matchedCount}}</span>
+                    </a>
+                </ol>
+            </div>
+
+            <!-- Placeholder for desktop -->
+            <div class="col-2 d-none d-lg-block"></div>
+        </div>
+    </div>
+    
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Placeholder for desktop -->
+            <div class="col-2 d-none d-lg-block"></div>
+
+            <div class="col">
+
+                <h2 style="margin-top: 48px;">관리</h2>
+                <br>
+                <ol class="list-group list-group-numbered">
+                    <a class="list-group-item d-flex justify-content-between align-items-start" href="/management?type=0">
+                        <div class="ms-2 me-auto">
+                            <div class="fw-bold">학생 관리</div>
+                            현재 {{studentLen}}명의 학생이 등록되었습니다.
+                        </div>
+                    </a>
+                    <a class="list-group-item d-flex justify-content-between align-items-start" href="/management?type=1">
+                        <div class="ms-2 me-auto">
+                            <div class="fw-bold">기수 관리</div>
+                            현재 {{termMax}}기수까지 등록되었습니다.
+                        </div>
+                    </a>
+                    <a class="list-group-item d-flex justify-content-between align-items-start" href="/management?type=2">
+                        <div class="ms-2 me-auto">
+                            <div class="fw-bold">매니저 관리</div>
+                            현재 {{managerLen}}명의 매니저가 있습니다.
+                        </div>
+                    </a>
+                    <a class="list-group-item d-flex justify-content-between align-items-start" href="/management?type=3">
+                        <div class="ms-2 me-auto">
+                            <div class="fw-bold">비밀번호 변경</div>
+                        </div>
                     </a>
                 </ol>
             </div>

@@ -1,6 +1,6 @@
 from django.shortcuts import render
 from django.http import HttpResponse
-from .models import User, Mentor, Mentee, Telegram, Document, Manager, Signup
+from .models import User, Mentor, Mentee, Telegram, Document, Manager, Signup, Term
 import json
 from django.db.models.functions import Cast
 # from django.db.models import TextField,Value
@@ -143,7 +143,7 @@ def readLastChat(request): # args: user:["user id", ...],
     return HttpResponse('{"status":"OK"}')
 
 # 멘토 or 멘티 신청 
-def createSignup(request): # args : userId, year,semester(0동계, 1 1학기, 2하계 , 3 2학기), userType(1:멘토,0:멘티)
+def createSignup(request): # args : userId, term(기수), userType(1:멘토,0:멘티)
     try:
         catchError = checkMen(**(request.GET.dict()))
         if(catchError != "OK"):
@@ -151,25 +151,28 @@ def createSignup(request): # args : userId, year,semester(0동계, 1 1학기, 2�
         
         user = User.objects.get(pk=request.GET['userId'])
         
-        if(not user.activated):
+        if(user.status == 0):
             return HttpResponse('{"status":"user is not activated"}')
-        if(user.userType != None):
+        if(user.status != 1):
             return HttpResponse('{"status":"user is already have type"}')
-        if(len(Mentor.objects.filter(userId=request.GET['userId'],isMatched=None)) >= 1 
-           or len(Mentee.objects.filter(userId=request.GET['userId'],activated=False)) >= 1):
-            return HttpResponse('{"status":"user is already submit"}')
             
-        data = {'userId':user,"year":request.GET['year'],"semester":request.GET['semester']}
+        data = {'userId':user,"term":Term.objects.get(pk=request.GET['term'])}
         
         if(request.GET['userType'] == '1'):
             Mentor.objects.create(**data)
+            user.status = 2
+            user.save()
         elif(request.GET['userType'] == '0'):
             Mentee.objects.create(**data)
+            user.status = 3
+            user.save()
             
     except KeyError:
         return HttpResponse('{"status":"not enough data"}')
     except User.DoesNotExist:
         return HttpResponse('{"status":"user does not exist"}')
+    except Term.DoesNotExist:
+        return HttpResponse('{"status":"term does not exist"}')
     return HttpResponse('{"status":"OK"}')
 
 def selectDocument(request): # args : userId, date:yyyy-mm-dd
@@ -202,11 +205,15 @@ def admin(request):
     if (not (request.session.get('id') or request.session.get('admin'))):
         return redirect('/login/');
     result = {}
-    result['userCount'] = User.objects.filter(activated=False).count()
+    result['userCount'] = User.objects.filter(status=0).count()
     result['mentorCount'] = Mentor.objects.filter(activated=False).count()
     result['menteeCount'] = Mentee.objects.filter(activated=False).count()
-    result['matchedCount'] = (Mentee.objects.filter(activated=True, mentorId=None).count() 
-                              + Mentor.objects.filter(activated=True, matchedNum__lte=5).count())
+    result['matchedCount'] = User.objects.filter(status__range=(2,3)).count()
+    # (Mentee.objects.filter(activated=True, mentorId=None).count() 
+    #                           + Mentor.objects.filter(activated=True, matchedNum__lte=5).count())
+    result['managerLen'] = Manager.objects.all().count()
+    result['termMax'] = Term.objects.all().count()
+    result['studentLen'] = User.objects.all().count()
     
     return render(request, 'overview.html', result);
 
@@ -220,44 +227,120 @@ def signupList(request):
         result = {'type':request.GET['type']}
         
     if(request.GET['type'] == '0'): # 가입신청
-        result['data'] = list(User.objects.filter(activated=False).values('userId','name','registerDate'))
+        result['data'] = list(User.objects.filter(status=0).values('userId','name','registerDate'))
     else:
         if(request.GET['type'] == '1'): # 멘토신청
-            result['data'] = Mentor.objects.select_related().filter(activated=False).values('userId','userId__name','year','semester')
+            result['data'] = Mentor.objects.select_related().filter(activated=False).values(
+                'userId','userId__name','term__year','term__semester','term__id')
         elif(request.GET['type'] == '2'): # 멘티신청
-            result['data'] = Mentee.objects.select_related().filter(activated=False).values('userId','userId__name','year','semester')
+            result['data'] = Mentee.objects.select_related().filter(activated=False).values(
+                'userId','userId__name','term__year','term__semester','term__id')
         elif(request.GET['type'] == '3'): # 멘티 멘티 매칭
             q1 = Mentor.objects.select_related().filter(
-                activated=True, matchedNum__lte=5).values('userId','userId__name','year','semester','matchedNum')
+                activated=True, matchedNum__lte=4).values('userId','userId__name','term__year','term__semester','matchedNum','term__id')
             q2 = Mentee.objects.select_related().filter(
-                activated=True,mentorId=None).values('userId','userId__name','year','semester')
+                activated=True,mentorId=None).values('userId','userId__name','term__year','term__semester','term__id')
             
             
             result['mentors'] = q1
             result['mentees'] = q2
         
-        if(request.GET['type'] == '3'):
-            semesterToStr(result['mentors'])
-            semesterToStr(result['mentees'])
-        else:
-            semesterToStr(result['data'])
-        
     return render(request, 'register.html', result)
+
+def management(request):
+    if (not (request.session.get('id') or request.session.get('admin'))):
+        return redirect('/login/');
+    
+    if('type' not in request.GET):
+        result = {'type':'0'}
+    else:
+        result = {'type':request.GET['type']}
+    if(result['type'] == '2'):
+        if(not request.session.get('admin')):
+            return HttpResponse("<script>alert('관리자만 접근할 수 있습니다.');history.back();</script>")
+
+    if(result['type'] == '0'):
+        result['data'] = getUserData()
+    elif(result['type'] == '1'):
+        result['data'] = termToStr(list(Term.objects.all().values()))
+        result['lastTerm'] = Term.objects.all().count()+1
+    elif(result['type'] == '2'):
+        result['data'] = getManagerData()
+    elif(result['type'] == '3'):
+        pass
+    
+    return render(request, 'management.html', result)
+
+def appendTerm(request):
+    data = request.POST.dict()
+    data.pop('csrfmiddlewaretoken')
+    Term.objects.create(**data)
+    return HttpResponse("<script>alert('등록되었습니다.');location.href = document.referrer;</script>")
+
+def updateTerm(request):
+    data = request.POST.dict()
+    data.pop('csrfmiddlewaretoken')
+    Term.objects.filter(pk=request.GET['id']).update(**data)
+    return HttpResponse("<script>alert('수정되었습니다.');location.href = document.referrer;</script>")
+
+def adminSearch(request): # args : type
+    result = request.GET.dict()
+    
+    # if(request.GET['type']=='user'):
+    #     result['title'] = '유저'
+    # elif(request.GET['type']=='mentor'):
+    #     result['title'] = '멘토 검색'
+    # elif(request.GET['type']=='mentee'):
+    #     result['title'] = '멘티 검색'
+    
+    
+    
+    return render(request, 'search.html',result);
 
 def login(request):
     return render(request, 'login.html');
 
-def semesterToStr(objects):
-    for obj in objects:
-        if(obj['semester'] == 0):
-            obj['semester'] = '동계'
-        elif(obj['semester'] == 1):
-            obj['semester'] = '1학기'
-        elif(obj['semester'] == 2):
-            obj['semester'] = '하계'
-        elif(obj['semester'] == 3):
-            obj['semester'] = '2학기'
+def getUserData():
+    q0 = statusToStr(list(User.objects.filter(status__lte=3).values('userId','name','registerDate','status')))
+    q1 = list(Mentor.objects.select_related().filter(activated=True, matchedNum=5).values(
+        'userId','userId__name','term__year','term__semester','matchedNum','term__id','userId__registerDate'))
+    q2 = list(Mentee.objects.select_related().filter(activated=True).exclude(mentorId=None).values(
+        'userId','userId__name','term__year','term__semester','term__id','userId__registerDate','mentorId__userId'))
             
+    return q0 + q1 + q2
+
+def getTermData():
+    pass
+def getManagerData():
+    pass
+def setManagerPw(request):
+    pass
+
+
+def statusToStr(objects):
+    for obj in objects:
+        if(obj['status']==0):
+            obj['status']= '가입 대기'
+        elif(obj['status']==1):
+            obj['status']= '유저'
+        elif(obj['status']==2):
+            obj['status']= '멘토 신청'
+        elif(obj['status']==3):
+            obj['status']= '멘티 신청'
+        elif(obj['status']==4):
+            obj['status']= '멘토'
+        elif(obj['status']==5):
+            obj['status']= '멘티'
+    return objects
+def termToStr(objects):
+    for obj in objects:
+        if(obj['activated'] == None):
+            obj['activated'] = '활동 종료'
+        elif(obj['activated']):
+            obj['activated'] = '활동 중'
+        else:
+            obj['activated'] = '모집 중'
+    return objects
 def checkLogin(request):
     try:
         if(Manager.objects.get(pk=request.POST['id']).pw == request.POST['pw']):
@@ -281,12 +364,12 @@ def checkLogin(request):
 def acceptSignup(request): # args : signupType, userId (없으면 전부다 승인)
     if(request.GET['signupType'] == '0'): #가입
         if('userId' not in request.GET):
-            users = User.objects.filter(activated=False)
+            users = User.objects.filter(status=0)
         else:
             users = User.objects.filter(pk=request.GET['userId'])    
             
         for user in users:
-            user.activated = True
+            user.status = 1
             user.save()
 
     elif(request.GET['signupType'] == '1'): # 멘토
@@ -298,7 +381,7 @@ def acceptSignup(request): # args : signupType, userId (없으면 전부다 승�
         for user in users:
             user.activated = True
             user.save()
-            user.userId.userType = True
+            user.userId.status = 4
             user.userId.save()
     elif(request.GET['signupType'] == '2'): # 멘티 
         if('userId' not in request.GET):
@@ -309,7 +392,7 @@ def acceptSignup(request): # args : signupType, userId (없으면 전부다 승�
         for user in users:
             user.activated = True
             user.save()
-            user.userId.userType = False
+            user.userId.status = 5
             user.userId.save()
             
     elif(request.GET['signupType'] == '3'): # 매칭?
@@ -367,10 +450,8 @@ def checkMen(**kwargs):
         return "mentor id is not matched format"
     if('userId' in kwargs and 'mentorId' in kwargs and kwargs['userId'] == kwargs['mentorId']):
         return "same mentor and mentee"
-    if('year' in kwargs and not('2020' <= kwargs['year'] and kwargs['year'] < '2050' )):
-        return "out of range year"
-    if('semester' in kwargs and not('0' <= kwargs['semester'] and kwargs['semester'] < '4' )):
-        return "out of range semester"
+    if('term' in kwargs and not kwargs['term'].isdigit()):
+        return "term is not matched format"
     if('userType' in kwargs and not('0' == kwargs['userType'] or kwargs['userType'] == '1' )):
         return "type is not matched format"
     

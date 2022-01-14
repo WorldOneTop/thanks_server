@@ -96,7 +96,7 @@
                             </div>
                             <span style="font-size: 0.9em;color: grey;">
                                 {% if type == '0' %} {{obj.registerDate}} {% else%} 
-                                활동 기간 : {{obj.term__year}}년도 {{obj.term__semester}}{% endif %} 
+                                희망 기수 : {{obj.term__id}}기 - {{obj.term__year}}년도 {{obj.term__semester}}{% endif %}
                                 
                             </span>
                         </div>
@@ -109,6 +109,7 @@
                     {% endfor %}
                 </ol>
                 {% else %}
+                
                 <br>
                 <h4>멘토 리스트</h4>
                 <ol class="list-group list-group-numbered">
@@ -119,8 +120,7 @@
                                 {{obj.userId__name}} | {{obj.userId}}
                             </div>
                             <span style="font-size: 0.9em;color: grey;">
-                                
-                                활동 기간 : {{obj.term__year}}년도 {{obj.term__semester}} |
+                                희망 기수 : {{obj.term__id}}기 - {{obj.term__year}}년도 {{obj.term__semester}} ㅣ
                                 멘티 수 : {{obj.matchedNum}}
                                 
                             </span>
@@ -133,6 +133,7 @@
                     {% endfor %}
                 </ol>
                 <br>
+                <hr>
                 <h4>멘티 리스트</h4>
                 <ol class="list-group list-group-numbered">
                     {% for obj in mentees %}

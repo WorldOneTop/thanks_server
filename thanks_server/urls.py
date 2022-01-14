@@ -22,6 +22,8 @@ urlpatterns = [
     path('management/', views.management),
     path('management/appendTerm/', views.appendTerm),
     path('management/updateTerm/', views.updateTerm),
+    path('management/manager/', views.manager),
+    path('management/managerPw/', views.managerPw),
     path('createSignup/', views.createSignup),
     path('signupList/acceptSignup/', views.acceptSignup),
     path('adminSearch/', views.adminSearch),

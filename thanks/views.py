@@ -155,7 +155,11 @@ def createSignup(request): # args : userId, term(기수), userType(1:멘토,0:�
             return HttpResponse('{"status":"user is not activated"}')
         if(user.status != 1):
             return HttpResponse('{"status":"user is already have type"}')
-            
+        
+        term = Term.objects.get(pk=request.GET['term'])
+        if(term.activated != False):
+            return HttpResponse('{"status":"not recruitment term"}')
+        
         data = {'userId':user,"term":Term.objects.get(pk=request.GET['term'])}
         
         if(request.GET['userType'] == '1'):
@@ -208,9 +212,8 @@ def admin(request):
     result['userCount'] = User.objects.filter(status=0).count()
     result['mentorCount'] = Mentor.objects.filter(activated=False).count()
     result['menteeCount'] = Mentee.objects.filter(activated=False).count()
-    result['matchedCount'] = User.objects.filter(status__range=(2,3)).count()
-    # (Mentee.objects.filter(activated=True, mentorId=None).count() 
-    #                           + Mentor.objects.filter(activated=True, matchedNum__lte=5).count())
+    result['matchedCount'] = (Mentee.objects.filter(activated=True, mentorId=None).count() 
+                              + Mentor.objects.filter(activated=True, matchedNum__lte=4).count())
     result['managerLen'] = Manager.objects.all().count()
     result['termMax'] = Term.objects.all().count()
     result['studentLen'] = User.objects.all().count()
@@ -265,7 +268,7 @@ def management(request):
         result['data'] = termToStr(list(Term.objects.all().values()))
         result['lastTerm'] = Term.objects.all().count()+1
     elif(result['type'] == '2'):
-        result['data'] = getManagerData()
+        result['data'] = list(Manager.objects.all().values('adminId'))
     elif(result['type'] == '3'):
         pass
     
@@ -282,6 +285,36 @@ def updateTerm(request):
     data.pop('csrfmiddlewaretoken')
     Term.objects.filter(pk=request.GET['id']).update(**data)
     return HttpResponse("<script>alert('수정되었습니다.');location.href = document.referrer;</script>")
+
+def manager(request):
+    if(request.GET['isCreate'] =='1'):
+        data = request.POST.dict()
+        data.pop('csrfmiddlewaretoken')
+        Manager.objects.create(**data)
+        return HttpResponse("<script>alert('생성되었습니다.');location.href = document.referrer;</script>")
+    else:
+        Manager.objects.get(pk=request.GET['id']).delete()
+        return HttpResponse("<script>alert('삭제되었습니다.');location.href = document.referrer;</script>")
+    
+def managerPw(request):
+    if(request.session.get('admin')):
+        with open(BASE_DIR+'/secrets.json', 'r') as f:
+            jf = json.load(f)
+        if(jf['adminPw'] != request.POST['oldPw']):
+            return HttpResponse("<script>alert('비밀번호가 일치하지 않습니다.');location.href = document.referrer;</script>")
+            
+        jf['adminPw'] = request.POST['newPw']
+        with open(BASE_DIR+'/secrets.json', 'w') as outfile:
+            json.dump(jf, outfile, indent=4)
+    else:
+        try:
+            manager = Manager.objects.get(pk=request.session['id'],pw=request.POST['oldPw'])
+            manager.pw = request.POST['newPw']
+            manager.save()
+        except Manager.DoesNotExist:
+            return HttpResponse("<script>alert('비밀번호가 일치하지 않습니다.');location.href = document.referrer;</script>")
+    
+    return HttpResponse("<script>alert('변경되었습니다.');location.href = document.referrer;</script>")
 
 def adminSearch(request): # args : type
     result = request.GET.dict()
@@ -309,10 +342,6 @@ def getUserData():
             
     return q0 + q1 + q2
 
-def getTermData():
-    pass
-def getManagerData():
-    pass
 def setManagerPw(request):
     pass
 
@@ -320,18 +349,19 @@ def setManagerPw(request):
 def statusToStr(objects):
     for obj in objects:
         if(obj['status']==0):
-            obj['status']= '가입 대기'
+            obj['statusStr']= '가입 대기'
         elif(obj['status']==1):
-            obj['status']= '유저'
+            obj['statusStr']= '유저'
         elif(obj['status']==2):
-            obj['status']= '멘토 신청'
+            obj['statusStr']= '멘토 신청'
         elif(obj['status']==3):
-            obj['status']= '멘티 신청'
+            obj['statusStr']= '멘티 신청'
         elif(obj['status']==4):
-            obj['status']= '멘토'
+            obj['statusStr']= '멘토'
         elif(obj['status']==5):
-            obj['status']= '멘티'
+            obj['statusStr']= '멘티'
     return objects
+
 def termToStr(objects):
     for obj in objects:
         if(obj['activated'] == None):

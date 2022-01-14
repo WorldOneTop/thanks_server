@@ -73,35 +73,49 @@
                 {% if type == '0' %}
                 <center style="padding:30px;">
                     조건 검색 
-                        <select style="height:2em;">
-                            <option value=0>상태</option>
-                            <option value=1>가입 대기중</option>
+                        <select style="height:2em;" id="filterStatus">
+                            <option value=-1>구분</option>
+                            <option value=0>가입 대기</option>
+                            <option value=1>유저</option>
                             <option value=2>멘토 신청</option>
                             <option value=3>멘티 신청</option>
                             <option value=4>멘토</option>
                             <option value=5>멘티</option>
                         </select>
-                    <input type="number" placeholder="이름" style="width:6em;height:2em;">
-                        <button type="button" class="btn btn-secondary" style="margin-bottom:5px;font-size:0.8em;"
-                                onclick="">검색</button>    
+                    <input id="filterName" type="text" placeholder="이름" style="width:6em;height:2em;">
+                    <input id="filterId"type="number" placeholder="학번" style="width:6em;height:2em;">
+                    <button type="button" class="btn btn-secondary" style="margin-bottom:5px;font-size:0.8em;"
+                            onclick="userFilter();">검색</button>
+                    <button type="button" class="btn btn-outline-secondary" onclick="userFilterReset();"
+                            style="margin-bottom:5px;font-size:0.8em;">초기화
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor"
+                             class="bi bi-arrow-clockwise" viewBox="0 0 16 16">
+                            <path fill-rule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2v1z"></path>
+                            <path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466z">
+                            </path>
+                        </svg>
+              </button>
+                    
                 </center>
-                <ol class="list-group list-group-numbered">
+                <ol class="list-group list-group-numbered" id="userListContainer">
                     {% for obj in data %}
-                    <li class="list-group-item d-flex justify-content-between align-items-start">
+                    <li class="list-group-item d-flex justify-content-between align-items-start"
+                        id="{{obj.userId}}" title="{% if obj.statusStr %}{{obj.name}}{% else %}{{obj.userId__name}}{% endif %}"
+                        value="{{obj.status}}">
                         <div class="ms-2 me-auto">
                             <div class="fw-bold">
                                 
-                                {% if obj.status %} {{obj.name}} {% else %} {{obj.userId__name}} {% endif %} ㅣ {{obj.userId}}
+                                {% if obj.statusStr %} {{obj.name}} {% else %} {{obj.userId__name}} {% endif %} ㅣ {{obj.userId}}
                             </div>
                             <span style="font-size: 0.9em;color: grey;">
                                 가입 일 : {{obj.registerDate}},
-                                {% if obj.status %}
-                                상태 : {{ obj.status }}
+                                {% if obj.statusStr %}
+                                상태 : {{ obj.statusStr }}
                                 {% else %}
                                 {% if obj.matchedNum %}
-                                멘토 수 : obj.matchedNum
+                                멘토, 멘티 수 : obj.matchedNum
                                 {% else %}
-                                멘티 : {{ obj.mentorId__userId }}
+                                멘티, 멘토 : {{ obj.mentorId__userId }}
                                 {% endif %} 
                                 {% endif %} 
                             </span>
@@ -166,8 +180,48 @@
                 </ol>
                 {% endif %}
                 {% if type == '2' %}
+                
+                <center style="padding:30px;">
+                    <form action="manager/?isCreate=1" onsubmit="return submitManager(this)" method = "post">{% csrf_token %}
+                        <b>매니저 등록  &ensp;</b>
+                        <input name="adminId" type="text" placeholder="id" maxlength="20">&ensp;
+                        <input name="pw" type="password" placeholder="pw" maxlength="20">
+                        <button type="submit" class="btn btn-primary" style="margin-bottom:5px;font-size:0.8em;">생성</button>
+                    </form>
+                </center>
+
+                <ol class="list-group list-group-numbered">
+                    {% for obj in data %}
+                    <li class="list-group-item d-flex justify-content-between align-items-start">
+                        <div class="ms-2 me-auto">
+                            <div class="fw-bold">
+                                {{obj.adminId}}
+                            </div>
+                        </div>
+                        <div class="col position-absolute top-50 end-0 translate-middle-y me-2">
+                             <form action="manager/?isCreate=0&id={{obj.adminId}}" method = "post">{% csrf_token %}
+                                 <button type="submit" class="btn btn-secondary" style="font-size:0.8em;">삭제</button>
+                            </form>
+                        </div>
+                    </li>
+                    {% endfor %}
+                </ol>
                 {% endif %}
                 {% if type == '3' %}
+                
+                <center style="padding:30px;">
+                    <form action="managerPw/" onsubmit="return submitPw(this)" method = "post">{% csrf_token %}
+                        <div>
+                        <b>현재 비밀번호  &ensp;</b>
+                        <input name="oldPw" type="password" placeholder="old password" maxlength="20"></div>
+                        <br>
+                        <div>
+                        <b>변경 비밀번호  &ensp;</b>
+                        <input name="newPw" type="password" placeholder="new password" maxlength="20"></div>
+                        <br>
+                        <button type="submit" class="btn btn-primary" style="margin-bottom:5px;font-size:0.8em;">변경</button>
+                    </form>
+                </center>
                 {% endif %}
             </div>
 
@@ -190,6 +244,58 @@
             }
             return true;
         }
+        function submitManager(obj){
+            if(!(obj.adminId.value && obj.pw.value)){
+                alert('데이터를 모두 입력해주세요.');
+                return false;
+            }
+            return true;
+        }
+        function submitPw(obj){
+            if(!(obj.oldPw.value && obj.newPw.value)){
+                alert('데이터를 모두 입력해주세요.');
+                return false;
+            }
+            return true;
+        }
+        {% if type == '0' %}
+        let userDiv = document.getElementById('userListContainer');
+        let filterStatus = document.getElementById('filterStatus');
+        let filterName = document.getElementById('filterName');
+        let filterId = document.getElementById('filterId');
+         
+        function userFilter(){
+            objs = userDiv.children;
+            first = true;
+            
+            for(var i=0;i<objs.length;i++){
+                objs[i].style.borderTopWidth = 0;
+                if(filterId.value && (objs[i].id+"").indexOf(filterId.value) == -1 ){
+                    objs[i].style.setProperty("display", "none", "important");
+                    continue;
+                }
+                if(filterName.value && objs[i].title.indexOf(filterName.value) == -1 ){
+                    objs[i].style.setProperty("display", "none", "important");
+                    continue;
+                }
+                if(filterStatus.value != -1 && objs[i].value != filterStatus.value){
+                    objs[i].style.setProperty("display", "none", "important");
+                    continue;
+                }
+                if(first){
+                    objs[i].style.borderTopWidth = '1px';
+                    first = false;
+                }
+                objs[i].style.display = '';
+            }
+        }
+        function userFilterReset(){
+            filterId.value = '';
+            filterName.value = '';
+            filterStatus.value = -1;
+            userFilter();
+        }
+         {% endif %}
     </script>
 </body>
 

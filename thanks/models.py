@@ -12,7 +12,7 @@ class Mentor(models.Model):
     mentorId = models.AutoField(primary_key=True)
     userId = models.ForeignKey("User", on_delete=models.CASCADE)
     term = models.ForeignKey("Term", on_delete=models.CASCADE)
-    activated = models.BooleanField(default=False)
+    activated = models.BooleanField(default=False,null=True) # false=신청대기, true=활동중(멘티없을수도), null=활동종료
     matchedNum = models.PositiveSmallIntegerField(default=0)
     
 class Mentee(models.Model):
@@ -20,7 +20,7 @@ class Mentee(models.Model):
     userId = models.ForeignKey("User", on_delete=models.CASCADE)
     term = models.ForeignKey("Term", on_delete=models.CASCADE)
     mentorId =  models.ForeignKey("Mentor", on_delete=models.CASCADE, null=True)
-    activated = models.BooleanField(default=False)
+    activated = models.BooleanField(default=False,null=True)
     
 class Telegram(models.Model):
     telegramId = models.AutoField(primary_key=True)
@@ -75,5 +75,5 @@ class Signup(models.Model):
 
 # 거절 사유
 class Reject(models.Model):
-    userId = models.PositiveIntegerField(primary_key=True) # 학번, fk아니라 별도 처리 필요
+    userId = models.PositiveIntegerField() # 학번, fk아니라 별도 처리 필요
     reason = models.CharField(max_length=100)

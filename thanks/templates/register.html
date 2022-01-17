@@ -29,10 +29,10 @@
                             신청
                         </a>
                         <ul class="dropdown-menu" aria-labelledby="navbarDropdown">
-                            <li><a class="dropdown-item" href="./?type=0">가입 신청</a></li>
-                            <li><a class="dropdown-item" href="./?type=1">멘토 신청</a></li>
-                            <li><a class="dropdown-item" href="./?type=2">멘티 신청</a></li>
-                            <li><a class="dropdown-item" href="./?type=3">멘토&amp;멘티 매칭</a></li>
+                            <li><a class="dropdown-item" href="/signupList?type=0">가입 신청</a></li>
+                            <li><a class="dropdown-item" href="/signupList?type=1">멘토 신청</a></li>
+                            <li><a class="dropdown-item" href="/signupList?type=2">멘티 신청</a></li>
+                            <li><a class="dropdown-item" href="/signupList?type=3">멘토&amp;멘티 매칭</a></li>
                         </ul>
                     </li>
                     <li class="nav-item dropdown">
@@ -40,8 +40,10 @@
                             관리
                         </a>
                         <ul class="dropdown-menu" aria-labelledby="navbarDropdown">
-                            <li><a class="dropdown-item" href="manage.html?type=1">멘토 관리</a></li>
-                            <li><a class="dropdown-item" href="manage.html?type=2">멘티 관리</a></li>
+                            <li><a class="dropdown-item" href="/management/?type=0">학생 관리</a></li>
+                            <li><a class="dropdown-item" href="/management/?type=1">기수 관리</a></li>
+                            <li><a class="dropdown-item" href="/management/?type=2">매니저 관리</a></li>
+                            <li><a class="dropdown-item" href="/management/?type=3">비밀번호 변경</a></li>
                         </ul>
                     </li>
                 </ul>
@@ -58,10 +60,6 @@
                 <div class="alert alert-primary mt-5" role="alert">
                     <span class="badge rounded-pill bg-secondary">new</span> {{data|length}} 건의 새로운 신청 정보가 있습니다.
                 </div>
-                {% else %}<!--
-                <div class="alert alert-primary mt-5" role="alert" style="background-color:#fff;border-color:#fff">
-                    <span class="badge rounded-pill bg-secondary" style="background-color:#fff !important; "> </span>
-                </div>-->
                 {% endif %}
                 <h2 class="mt-5">신청 리스트</h2>
                 <br>
@@ -85,11 +83,24 @@
                                 onclick="location.href='./acceptSignup?signupType={{type}}'">일괄 승인</button>
                     </li>
                     {% endif %}
+                    {% if type == '3' %}
+                    <li class="nav-item" style="float:right;margin-left:auto;padding-top: 15px;">
+                        <b>
+                        {% if currentTerm == '' %}
+                        현재 모집 중인 기수가 없습니다.
+                        {% else %}
+                        현재 {{currentTerm}}기 모집중입니다.
+                        {% endif %}
+                        </b>
+                    </li>
+                    
+                    {% endif %}
                 </ul>
                 {% if type != '3' %}
                 <ol class="list-group list-group-numbered">
                     {% for obj in data %}
-                    <li class="list-group-item d-flex justify-content-between align-items-start">
+                    <a class="list-group-item d-flex justify-content-between align-items-start"
+                       href="#" onclick="openPopup('/detail/?id={{obj.userId}}')">
                         <div class="ms-2 me-auto">
                             <div class="fw-bold">
                                 {% if type == '0' %} {{obj.name}} {% else%} {{obj.userId__name}} {% endif %} | {{obj.userId}}
@@ -103,18 +114,23 @@
                         <div class="col position-absolute top-50 end-0 translate-middle-y me-2">
                             <button type="button" class="btn btn-primary" 
                                     onclick="location.href='./acceptSignup?signupType={{type}}&userId={{obj.userId}}'">승인</button>
-                            <button type="button" class="btn btn-secondary" onclick="openReject();">거절</button>
+                            <button type="button" class="btn btn-secondary" 
+                                    onclick="openReject({{obj.userId}},'{{obj.mentorId}}{{obj.menteeId}}');">거절</button>
                         </div>
-                    </li>
+                    </a>
                     {% endfor %}
                 </ol>
                 {% else %}
                 
                 <br>
+                
+                {% if mentors %}
                 <h4>멘토 리스트</h4>
+                {% endif %}
                 <ol class="list-group list-group-numbered">
                     {% for obj in mentors %}
-                    <li class="list-group-item d-flex justify-content-between align-items-start">
+                    <a class="list-group-item d-flex justify-content-between align-items-start"
+                       href="#" onclick="openPopup('/detail/?id={{obj.userId}}')">
                         <div class="ms-2 me-auto">
                             <div class="fw-bold">
                                 {{obj.userId__name}} | {{obj.userId}}
@@ -127,31 +143,33 @@
                         </div>
                         <div class="col position-absolute top-50 end-0 translate-middle-y me-2">
                             <button type="button" class="btn btn-primary" 
-                                    onclick="openSearch('멘티');">매칭</button>
+onclick="openPopup('/adminSearch?type=0&id={{obj.mentorId}}&term={{obj.term__id}}&name={{obj.userId__name}}&myId={{obj.userId}}&menteeNum={{obj.matchedNum}}');">매칭</button>
                         </div>
-                    </li>
+                    </a>
                     {% endfor %}
                 </ol>
                 <br>
-                <hr>
+                {% if mentees %}
                 <h4>멘티 리스트</h4>
+                {% endif %}
                 <ol class="list-group list-group-numbered">
                     {% for obj in mentees %}
-                    <li class="list-group-item d-flex justify-content-between align-items-start">
+                    <a class="list-group-item d-flex justify-content-between align-items-start"
+                       href="#" onclick="openPopup('/detail/?id={{obj.userId}}')">
                         <div class="ms-2 me-auto">
                             <div class="fw-bold">
                                  {{obj.userId__name}} | {{obj.userId}}
                             </div>
                             <span style="font-size: 0.9em;color: grey;">
-                                활동 기간 : {{obj.term__year}}년도 {{obj.term__semester}} 
+                                희망 기수 : {{obj.term__id}}기 - {{obj.term__year}}년도 {{obj.term__semester}}
                                 
                             </span>
                         </div>
                         <div class="col position-absolute top-50 end-0 translate-middle-y me-2">
                             <button type="button" class="btn btn-primary" 
-                                    onclick="openSearch('멘토');">매칭</button>
+onclick="openPopup('/adminSearch?type=1&id={{obj.menteeId}}&term={{obj.term__id}}&name={{obj.userId__name}}&myId={{obj.userId}}');">매칭</button>
                         </div>
-                    </li>
+                    </a>
                     {% endfor %}
                 </ol>
                 
@@ -166,16 +184,26 @@
     <!-- Placeholder for footer -->
     <div class="bd-footer py-5 mt-5" style="height: 200px;"></div>
     <script>
-        function openSearch(type){
+        function openPopup(url){
             var width = window.outerWidth / 5;
             var height = window.outerHeight / 5;
 
-
-            window.open('/adminSearch?type='+type, 'search',
+            popup = window.open(url, 'popup',
                         'width='+(width*3)+', height='+ (height*3) +', scrollbars= 0, toolbar=0, menubar=no, left='+width+', top='+height);
+            if (event.stopPropagation)
+                event.stopPropagation();
+            else 
+                event.cancelBubble = true;
+            
+            popup.addEventListener('beforeunload', function() {
+                location.reload();
+            });
         }
-        function openReject(){
-            prompt('거절 사유');
+        function openReject(userId,menId){
+            var reason = prompt('거절 사유');
+            if(reason){
+                location.href= "./acceptReject/?userId="+userId+"&reason="+reason+"&menId="+menId+"&type={{type}}"
+            }
         }
     </script>
 </body>

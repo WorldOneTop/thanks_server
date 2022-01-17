@@ -15,54 +15,63 @@
 <body>
     <nav class="navbar navbar-expand-lg navbar-light bg-light">
         <div class="container-fluid">
-            <a class="navbar-brand" >{{type}} 검색</a>
+            <a class="navbar-brand" >{{ term }}기 {{ yourType }} 검색</a>
             </div></nav>
-  <br>  
-{% if type != 'user' %}
-<p> 멘토 : 이제일, 멘티 수 : 0명, 멘토 활동 수 : 0번, 멘티 활동 수 : 0번</p>
-{% endif %}
+    <br>
+    <center>
+    
+<p> {{ myType }} : <b>{{ name }}</b> &nbsp;학번 : {{ myId }}
+    {% if menteeNum %}
+    <br>
+    멘티 수 : {{menteeNum}}명
+    {% endif %}
+        </p>
+    </center>
 <div class="mt-5" style="margin-bottom:3em;">
     <center>
-        {% if type == 'user' %}
-        <div style="display:inline;margin-right:3em;">
-            활동기간 
-        <input type="number" placeholder="년도" maxlength="4" style="width:4em;height:2em;" oninput="maxLengthCheck(this)" >
-    <select style="height:2em;">
-        <option>동계</option>
-        <option>1학기</option>
-        <option>하계</option>
-        <option>2학기</option>
+    <div style="display:inline;width:90%;">
+        {{yourType}}
+        <select style="height:2em;" id="filterStatus">
+        <option value=1>이름</option>
+        <option value=2>학번</option>
     </select>
+        <input type="text" placeholder="검색"style="height:2em;" maxlength="8" id="filter"  
+               onkeyup="if(window.event.keyCode==13){userFilter();}">
         </div>
-        {% endif %}
-    <div style="display:inline;">
-        학생
-        <select style="height:2em;">
-        <option>이름</option>
-        <option>학번</option>
-    </select>
-        <input type="text" placeholder="검색"style="height:2em;" maxlength="8">
-        </div>
+        <button type="button" class="btn btn-secondary" style="margin-bottom:5px;font-size:0.8em;"
+                            onclick="userFilter();">검색</button>
+                    <button type="button" class="btn btn-outline-secondary" onclick="userFilterReset();"
+                            style="margin-bottom:5px;font-size:0.8em;">초기화
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor"
+                             class="bi bi-arrow-clockwise" viewBox="0 0 16 16">
+                            <path fill-rule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2v1z"></path>
+                            <path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466z">
+                            </path>
+                        </svg>
+              </button>
         </center>
 </div>
     
-<ol class="list-group list-group-numbered">
-                    <li class="list-group-item d-flex justify-content-between align-items-start">
+<ol class="list-group list-group-numbered" style="width: 90%;margin: auto;margin-bottom:3em;" id="userListContainer">
+    {% for obj in data %}
+                    <li class="list-group-item d-flex justify-content-between align-items-start"
+                        id="{{obj.userId}}" title="{{obj.userId__name}}">
                         <div class="ms-2 me-auto">
                             <div class="fw-bold">
-                                test 유저 | 20185159
+                                {{ obj.userId__name }} | {{ obj.userId }}
                             </div>
                             <span style="font-size: 0.9em;color: grey;">
-                                상태 : 가입 대기중, 멘토 신청, 멘토 등록(4명), 멘티(멘토 : 이름),
-                                활동이력 : 멘토 활동 0번, 멘티 활동 0번
-                                
+                                {% if obj.matchedNum != None %}
+                                멘티 수 : {{ obj.matchedNum }}
+                                {% endif %}
                             </span>
                         </div>
                         <div class="col position-absolute top-50 end-0 translate-middle-y me-2">
-                            <button type="button" class="btn btn-primary" 
-                                    onclick="checkMatch();">{{type}} 선택</button>
+                            <button type="button" class="btn btn-primary" {% if menteeNum %} style="font-size:0.8em;" {% endif %}
+                                    onclick="checkMatch('{{obj.userId__name}}','{{obj.mentorId}}{{obj.menteeId}}');">{{yourType}} 선택</button>
                         </div>
                     </li>
+    {% endfor %}
                 </ol>
     
     <script>
@@ -76,12 +85,61 @@
       object.value = Math.min(object.value, 2050);
       object.value = Math.max(object.value, 0);
   }
-        function checkMatch(){
-            if(confirm('~의 {{type}}로 ~를 선택하시겠습니까?')){
-                window.close();
+        function checkMatch(yourName, yourId){
+            if(confirm('{{name}}의 {{yourType}}로 '+yourName+'을(를) 선택하시겠습니까?')){
+                let href = "./adminMatched/?mentor=";
+                {% if myType == '멘토' %}
+                    href += {{ id }}+"&mentee="+yourId;
+                {% else %}
+                    href += yourId+"&mentee=" + {{ id }};
+                {% endif %}
+                
+                {% if myType == '멘티' or menteeNum == '4' %}
+                    href += "&close=1";
+                 {% else %}
+                 href += "&close=0";
+                {% endif%}
+                
+                location.href= href;
             }else{
                 
             }
+        }
+        
+        let userDiv = document.getElementById('userListContainer');
+        let filter = document.getElementById('filter');
+        let filterStatus = document.getElementById('filterStatus');
+         
+        function userFilter(){
+            objs = userDiv.children;
+            first = true;
+            
+            for(var i=0;i<objs.length;i++){
+                objs[i].style.borderTopWidth = 0;
+                if(filter.value){
+                    if(filter.value == 2){
+                        if((objs[i].id+"").indexOf(filter.value) == -1 ){
+                            objs[i].style.setProperty("display", "none", "important");
+                            continue;
+                        }
+                    }else{
+                        if(objs[i].title.indexOf(filter.value) == -1 ){
+                            objs[i].style.setProperty("display", "none", "important");
+                            continue;
+                        }
+                    }
+                }
+                if(first){
+                    objs[i].style.borderTopWidth = '1px';
+                    first = false;
+                }
+                objs[i].style.display = '';
+            }
+        }
+        
+        function userFilterReset(){
+            filter.value = '';
+            userFilter();
         }
     </script>
 </body>

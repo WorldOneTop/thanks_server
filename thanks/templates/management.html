@@ -29,10 +29,10 @@
                             신청
                         </a>
                         <ul class="dropdown-menu" aria-labelledby="navbarDropdown">
-                            <li><a class="dropdown-item" href="./?type=0">가입 신청</a></li>
-                            <li><a class="dropdown-item" href="./?type=1">멘토 신청</a></li>
-                            <li><a class="dropdown-item" href="./?type=2">멘티 신청</a></li>
-                            <li><a class="dropdown-item" href="./?type=3">멘토&amp;멘티 매칭</a></li>
+                            <li><a class="dropdown-item" href="/signupList?type=0">가입 신청</a></li>
+                            <li><a class="dropdown-item" href="/signupList?type=1">멘토 신청</a></li>
+                            <li><a class="dropdown-item" href="/signupList?type=2">멘티 신청</a></li>
+                            <li><a class="dropdown-item" href="/signupList?type=3">멘토&amp;멘티 매칭</a></li>
                         </ul>
                     </li>
                     <li class="nav-item dropdown">
@@ -40,8 +40,10 @@
                             관리
                         </a>
                         <ul class="dropdown-menu" aria-labelledby="navbarDropdown">
-                            <li><a class="dropdown-item" href="manage.html?type=1">멘토 관리</a></li>
-                            <li><a class="dropdown-item" href="manage.html?type=2">멘티 관리</a></li>
+                            <li><a class="dropdown-item" href="/management/?type=0">학생 관리</a></li>
+                            <li><a class="dropdown-item" href="/management/?type=1">기수 관리</a></li>
+                            <li><a class="dropdown-item" href="/management/?type=2">매니저 관리</a></li>
+                            <li><a class="dropdown-item" href="/management/?type=3">비밀번호 변경</a></li>
                         </ul>
                     </li>
                 </ul>
@@ -82,8 +84,10 @@
                             <option value=4>멘토</option>
                             <option value=5>멘티</option>
                         </select>
-                    <input id="filterName" type="text" placeholder="이름" style="width:6em;height:2em;">
-                    <input id="filterId"type="number" placeholder="학번" style="width:6em;height:2em;">
+                    <input id="filterName" type="text" placeholder="이름" style="width:6em;height:2em;"
+                           onkeyup="if(window.event.keyCode==13){userFilter();}">
+                    <input id="filterId"type="number" placeholder="학번" style="width:6em;height:2em;"
+                           onkeyup="if(window.event.keyCode==13){userFilter();}">
                     <button type="button" class="btn btn-secondary" style="margin-bottom:5px;font-size:0.8em;"
                             onclick="userFilter();">검색</button>
                     <button type="button" class="btn btn-outline-secondary" onclick="userFilterReset();"
@@ -99,9 +103,10 @@
                 </center>
                 <ol class="list-group list-group-numbered" id="userListContainer">
                     {% for obj in data %}
-                    <li class="list-group-item d-flex justify-content-between align-items-start"
+                    <a class="list-group-item d-flex justify-content-between align-items-start" 
+                       href="#" onclick="openPopup('/detail/?id={{obj.userId}}')"
                         id="{{obj.userId}}" title="{% if obj.statusStr %}{{obj.name}}{% else %}{{obj.userId__name}}{% endif %}"
-                        value="{{obj.status}}">
+                        rel="{{obj.status}}">
                         <div class="ms-2 me-auto">
                             <div class="fw-bold">
                                 
@@ -122,7 +127,7 @@
                         </div>
                         <div class="col position-absolute top-50 end-0 translate-middle-y me-2">
                         </div>
-                    </li>
+                    </a>
                     {% endfor %}
                 </ol>
                 {% endif %}
@@ -195,7 +200,7 @@
                     <li class="list-group-item d-flex justify-content-between align-items-start">
                         <div class="ms-2 me-auto">
                             <div class="fw-bold">
-                                {{obj.adminId}}
+                                id : {{obj.adminId}}
                             </div>
                         </div>
                         <div class="col position-absolute top-50 end-0 translate-middle-y me-2">
@@ -258,6 +263,19 @@
             }
             return true;
         }
+        
+        function openPopup(url){
+            var width = window.outerWidth / 5;
+            var height = window.outerHeight / 5;
+
+            window.open(url, 'popup',
+                        'width='+(width*3)+', height='+ (height*3) +', scrollbars= 0, toolbar=0, menubar=no, left='+width+', top='+height);
+            if (event.stopPropagation)
+                event.stopPropagation();
+            else 
+                event.cancelBubble = true;
+
+        }
         {% if type == '0' %}
         let userDiv = document.getElementById('userListContainer');
         let filterStatus = document.getElementById('filterStatus');
@@ -269,6 +287,7 @@
             first = true;
             
             for(var i=0;i<objs.length;i++){
+                console.log(objs[i].value +"    "+ filterStatus.value)
                 objs[i].style.borderTopWidth = 0;
                 if(filterId.value && (objs[i].id+"").indexOf(filterId.value) == -1 ){
                     objs[i].style.setProperty("display", "none", "important");
@@ -278,7 +297,7 @@
                     objs[i].style.setProperty("display", "none", "important");
                     continue;
                 }
-                if(filterStatus.value != -1 && objs[i].value != filterStatus.value){
+                if(filterStatus.value != -1 && objs[i].rel != filterStatus.value){
                     objs[i].style.setProperty("display", "none", "important");
                     continue;
                 }

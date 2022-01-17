@@ -1,6 +1,6 @@
 from django.shortcuts import render
 from django.http import HttpResponse
-from .models import User, Mentor, Mentee, Telegram, Document, Manager, Signup, Term
+from .models import User, Mentor, Mentee, Telegram, Document, Manager, Signup, Term, Reject
 import json
 from django.db.models.functions import Cast
 # from django.db.models import TextField,Value
@@ -8,10 +8,12 @@ from datetime import datetime
 from django.core.exceptions import *
 from django.shortcuts import render
 from django.shortcuts import redirect
+from django.db import transaction
 
 import os
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+MAX_MENTEE = 5
 
 def index(request):
     return HttpResponse("hello world")
@@ -204,7 +206,7 @@ def selectDocument(request): # args : userId, date:yyyy-mm-dd
     result = json.dumps(result, ensure_ascii=False)
     return HttpResponse('{"status":"OK","data":"'+result+'"}')# data: [{docType, title, content, fileUrl}, ...] 
 
-"""        ADMIN        """
+"""        ADMIN PAGE       """
 def admin(request):
     if (not (request.session.get('id') or request.session.get('admin'))):
         return redirect('/login/');
@@ -212,8 +214,8 @@ def admin(request):
     result['userCount'] = User.objects.filter(status=0).count()
     result['mentorCount'] = Mentor.objects.filter(activated=False).count()
     result['menteeCount'] = Mentee.objects.filter(activated=False).count()
-    result['matchedCount'] = (Mentee.objects.filter(activated=True, mentorId=None).count() 
-                              + Mentor.objects.filter(activated=True, matchedNum__lte=4).count())
+    result['matchedCount'] = (Mentee.objects.filter(activated=True, mentorId=None,term__activated=False,).count() 
+                              + Mentor.objects.filter(activated=True, matchedNum__lt=MAX_MENTEE,term__activated=False).count())
     result['managerLen'] = Manager.objects.all().count()
     result['termMax'] = Term.objects.all().count()
     result['studentLen'] = User.objects.all().count()
@@ -234,20 +236,20 @@ def signupList(request):
     else:
         if(request.GET['type'] == '1'): # 멘토신청
             result['data'] = Mentor.objects.select_related().filter(activated=False).values(
-                'userId','userId__name','term__year','term__semester','term__id')
+                'mentorId','userId','userId__name','term__year','term__semester','term__id')
         elif(request.GET['type'] == '2'): # 멘티신청
             result['data'] = Mentee.objects.select_related().filter(activated=False).values(
-                'userId','userId__name','term__year','term__semester','term__id')
+                'menteeId','userId','userId__name','term__year','term__semester','term__id')
         elif(request.GET['type'] == '3'): # 멘티 멘티 매칭
-            q1 = Mentor.objects.select_related().filter(
-                activated=True, matchedNum__lte=4).values('userId','userId__name','term__year','term__semester','matchedNum','term__id')
-            q2 = Mentee.objects.select_related().filter(
-                activated=True,mentorId=None).values('userId','userId__name','term__year','term__semester','term__id')
-            
+            q1 = Mentor.objects.select_related().filter(term__activated=False,activated=True,
+                matchedNum__lt=MAX_MENTEE).values('userId','userId__name','term__year','term__semester','matchedNum','term__id','mentorId')
+            q2 = Mentee.objects.select_related().filter(term__activated=False,
+                activated=True,mentorId=None).values('userId','userId__name','term__year','term__semester','term__id','menteeId')
             
             result['mentors'] = q1
             result['mentees'] = q2
-        
+            result['currentTerm'] = ', '.join([str(d['id']) for d in Term.objects.filter(activated=False).values('id')])
+            
     return render(request, 'register.html', result)
 
 def management(request):
@@ -274,6 +276,75 @@ def management(request):
     
     return render(request, 'management.html', result)
 
+def login(request):
+    return render(request, 'login.html')
+
+
+"""        ADMIN POPUP PAGE    """
+def userDetail(request):
+    uId = request.GET['id']
+    user = statusToStr(User.objects.filter(pk=uId).values('userId','name','registerDate','status'))[0]
+    
+    if(user['status'] == 4):
+        mentor = Mentor.objects.get(userId=uId, activated=True)
+        if(mentor.matchedNum == 0):
+            user['add'] = {'none' : True}
+        else:
+            user['add'] = Mentee.objects.select_related('userId').filter(mentorId=mentor).values('userId_id','userId__name')
+            user['term'] = mentor.term_id
+        
+    elif(user['status'] == 5):
+        mentee = Mentee.objects.select_related('mentorId').get(userId=uId, activated = True)
+        if(mentee.mentorId == None):
+            user['add'] = {'none' : True}
+        else:
+            user['add'] = [{'userId_id':mentee.mentorId.userId_id, 'userId__name':mentee.mentorId.userId.name}]
+            user['term'] = mentee.term_id
+    
+    mentorRows = Mentee.objects.select_related().filter(
+        mentorId__userId=uId, activated=None).values('term','userId','userId__name','term__startDate','term__endDate').order_by('term')
+    
+    mentors = []
+    if(len(mentorRows) > 0):
+        for row in mentorRows:
+            if(not mentors):
+                mentors = [row]
+                mentors[0]['users'] = [{'id':mentors[0]['userId'],'name':mentors[0]['userId__name']}]
+                continue
+            if(row['term'] != mentors[-1]['term']):
+                mentors.append(row)
+                mentors[-1]['users'] = [{'id':mentors[-1]['userId'],'name':mentors[-1]['userId__name']}]
+            else:
+                mentors[-1]['users'].append({'id':row['userId'],'name':row['userId__name']})
+    
+    mentees = list(Mentee.objects.select_related().filter(
+        userId=uId, activated=None).values('term','mentorId__userId','mentorId__userId__name','term__startDate','term__endDate').order_by('term'))
+    
+    sorted_profile = sorted(mentors+mentees, key = lambda item: item['term'])
+
+    result = {'user':user,'portfolio':sorted_profile}
+    
+    
+    return render(request, 'detail.html', result)
+
+def adminSearch(request): 
+    result = request.GET.dict()
+    if(request.GET['type'] == '1'): # 맨토를 검색
+        result['myType'] = '멘티'
+        result['yourType'] = '멘토'
+        result['data'] = Mentor.objects.select_related('userId').filter(
+            activated=True,matchedNum__lt=MAX_MENTEE,term=request.GET['term']).values(
+            'mentorId','userId__name','userId','matchedNum')
+    else:
+        result['myType'] = '멘토'
+        result['yourType'] = '멘티'
+        result['data'] =  Mentee.objects.select_related('userId').filter(
+            activated=True,mentorId=None,term=request.GET['term']).values(
+            'menteeId','userId__name','userId')
+    
+    return render(request, 'search.html',result)
+
+"""        ADMIN FORM ACTION    """
 def appendTerm(request):
     data = request.POST.dict()
     data.pop('csrfmiddlewaretoken')
@@ -281,9 +352,39 @@ def appendTerm(request):
     return HttpResponse("<script>alert('등록되었습니다.');location.href = document.referrer;</script>")
 
 def updateTerm(request):
+    if(request.POST['startDate'] >= request.POST['endDate'] ):
+        return HttpResponse("<script>alert('종료일이 시작일보다 앞섭니다.');history.back();</script>")
     data = request.POST.dict()
     data.pop('csrfmiddlewaretoken')
-    Term.objects.filter(pk=request.GET['id']).update(**data)
+    term = Term.objects.filter(pk=request.GET['id'])
+    if(data['activated'] == '' and term[0].activated != None): # 활동 종료로 변경
+        delMentor = Mentor.objects.filter(term=request.GET['id'], activated=False)
+        delMentee = Mentee.objects.filter(term=request.GET['id'], activated=False)
+        
+        for row in delMentor:
+            Reject.objects.create(**{'userId':row.userId_id,'reason':request.GET['id']+'기 모집 종료'})
+            row.userId.status = 1
+            row.userId.save()
+        for row in delMentee:
+            Reject.objects.create(**{'userId':row.userId_id,'reason':request.GET['id']+'기 모집 종료'})
+            row.userId.status = 1
+            row.userId.save()
+            
+        delMentor.delete()
+        delMentee.delete()
+        
+        mentorRows = Mentor.objects.select_related('userId').filter(term=request.GET['id'])
+        mentorRows.update(activated=None)
+        for row in mentorRows:
+            row.userId.status = 1
+            row.userId.save()
+            
+        menteeRows = Mentee.objects.select_related('userId').filter(term=request.GET['id'])
+        menteeRows.update(activated=None)
+        for row in menteeRows:
+            row.userId.status = 1
+            row.userId.save()
+    term.update(**data)
     return HttpResponse("<script>alert('수정되었습니다.');location.href = document.referrer;</script>")
 
 def manager(request):
@@ -316,61 +417,6 @@ def managerPw(request):
     
     return HttpResponse("<script>alert('변경되었습니다.');location.href = document.referrer;</script>")
 
-def adminSearch(request): # args : type
-    result = request.GET.dict()
-    
-    # if(request.GET['type']=='user'):
-    #     result['title'] = '유저'
-    # elif(request.GET['type']=='mentor'):
-    #     result['title'] = '멘토 검색'
-    # elif(request.GET['type']=='mentee'):
-    #     result['title'] = '멘티 검색'
-    
-    
-    
-    return render(request, 'search.html',result);
-
-def login(request):
-    return render(request, 'login.html');
-
-def getUserData():
-    q0 = statusToStr(list(User.objects.filter(status__lte=3).values('userId','name','registerDate','status')))
-    q1 = list(Mentor.objects.select_related().filter(activated=True, matchedNum=5).values(
-        'userId','userId__name','term__year','term__semester','matchedNum','term__id','userId__registerDate'))
-    q2 = list(Mentee.objects.select_related().filter(activated=True).exclude(mentorId=None).values(
-        'userId','userId__name','term__year','term__semester','term__id','userId__registerDate','mentorId__userId'))
-            
-    return q0 + q1 + q2
-
-def setManagerPw(request):
-    pass
-
-
-def statusToStr(objects):
-    for obj in objects:
-        if(obj['status']==0):
-            obj['statusStr']= '가입 대기'
-        elif(obj['status']==1):
-            obj['statusStr']= '유저'
-        elif(obj['status']==2):
-            obj['statusStr']= '멘토 신청'
-        elif(obj['status']==3):
-            obj['statusStr']= '멘티 신청'
-        elif(obj['status']==4):
-            obj['statusStr']= '멘토'
-        elif(obj['status']==5):
-            obj['statusStr']= '멘티'
-    return objects
-
-def termToStr(objects):
-    for obj in objects:
-        if(obj['activated'] == None):
-            obj['activated'] = '활동 종료'
-        elif(obj['activated']):
-            obj['activated'] = '활동 중'
-        else:
-            obj['activated'] = '모집 중'
-    return objects
 def checkLogin(request):
     try:
         if(Manager.objects.get(pk=request.POST['id']).pw == request.POST['pw']):
@@ -389,6 +435,7 @@ def checkLogin(request):
             return redirect('/admin/');
         
     return HttpResponse("<script>alert('아이디 또는 비밀번호가 일치하지 않습니다.');history.back();</script>")
+
 
 # 가입 or 멘토 or 멘티 승인 (signupType 0, 1, 2)
 def acceptSignup(request): # args : signupType, userId (없으면 전부다 승인)
@@ -433,9 +480,80 @@ def acceptSignup(request): # args : signupType, userId (없으면 전부다 승�
         
     return HttpResponse("<script>alert('승인되었습니다.');location.href = document.referrer;</script>")
 
+# 멘토 멘티 매칭
+@transaction.atomic
+def adminMatched(request):
+    mentor = Mentor.objects.get(pk = request.GET['mentor'])
+    mentor.matchedNum += 1
+    mentor.save()
+    
+    mentee = Mentee.objects.get(pk = request.GET['mentee'])
+    mentee.mentorId = mentor
+    mentee.save()
+    
+    if(request.GET['close'] == '1'):
+        return HttpResponse("<script>alert('승인되었습니다.');window.close();</script>")
+    else:
+        return HttpResponse("<script>alert('승인되었습니다.');" +
+                            "var a = document.referrer.substr(0,document.referrer.length-1);"+
+                            "location.href = a + (document.referrer[document.referrer.length-1]*1+1);</script>")
+
 # 가입 or 멘토 or 멘티 거절
-def acceptReject(request): # args : signupType, userId, reason
-    return HttpResponse("")
+def acceptReject(request): 
+    user = User.objects.get(pk=request.GET['userId'])
+    if(request.GET['type'] == '0'): # 가입 거절
+        user.delete()
+    else:
+        user.status = 1
+        user.save()
+        if(request.GET['type'] == '1'): # 멘토 신청 거절
+            Mentor.objects.get(pk=request.GET['menId']).delete()
+        elif(request.GET['type'] == '2'): # 멘티 신청 거절
+            Mentee.objects.get(pk=request.GET['menId']).delete()
+        
+        
+    Reject.objects.create(**{'userId':request.GET['userId'],'reason':request.GET['reason']})
+    return HttpResponse("<script>alert('거절되었습니다.');location.href = document.referrer;</script>")
+
+
+
+"""        ADMIN FUNCTION    """
+def getUserData():
+    q0 = statusToStr(list(User.objects.all().values('userId','name','registerDate','status')))
+    # q1 = list(Mentor.objects.select_related().filter(activated=True, matchedNum=5).values(
+    #     'userId','userId__name','term__year','term__semester','matchedNum','term__id','userId__registerDate'))
+    # q2 = list(Mentee.objects.select_related().filter(activated=True).exclude(mentorId=None).values(
+    #     'userId','userId__name','term__year','term__semester','term__id','userId__registerDate','mentorId__userId'))
+            
+    return q0 #+ q1 + q2
+
+
+def statusToStr(objects):
+    for obj in objects:
+        if(obj['status']==0):
+            obj['statusStr']= '가입 대기'
+        elif(obj['status']==1):
+            obj['statusStr']= '유저'
+        elif(obj['status']==2):
+            obj['statusStr']= '멘토 신청'
+        elif(obj['status']==3):
+            obj['statusStr']= '멘티 신청'
+        elif(obj['status']==4):
+            obj['statusStr']= '멘토'
+        elif(obj['status']==5):
+            obj['statusStr']= '멘티'
+    return objects
+
+def termToStr(objects):
+    for obj in objects:
+        if(obj['activated'] == None):
+            obj['activated'] = '활동 종료'
+        elif(obj['activated']):
+            obj['activated'] = '활동 중'
+        else:
+            obj['activated'] = '모집 중'
+    return objects
+
 
 """        check data        """
 def checkId(_id):

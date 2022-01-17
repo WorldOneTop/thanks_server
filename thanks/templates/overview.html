@@ -15,7 +15,7 @@
 <body style="padding-bottom:100px">
     <nav class="navbar navbar-expand-lg navbar-light bg-light">
         <div class="container-fluid">
-            <a class="navbar-brand" href="#">감사운동</a>
+            <a class="navbar-brand" href="/admin/">감사운동</a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
                 <span class="navbar-toggler-icon"></span>
             </button>
@@ -37,13 +37,13 @@
                     </li>
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                            기타
+                            관리
                         </a>
                         <ul class="dropdown-menu" aria-labelledby="navbarDropdown">
-                            <li><a class="dropdown-item" href="manage.html?type=1">로그아웃</a></li>
-                            <li><a class="dropdown-item" href="manage.html?type=2">비밀번호 변경</a></li>
-                            <li><a class="dropdown-item" href="manage.html?type=2">자동승인 여부</a></li>
-                            <li><a class="dropdown-item" href="manage.html?type=2">매니저 생성</a></li>
+                            <li><a class="dropdown-item" href="/management/?type=0">학생 관리</a></li>
+                            <li><a class="dropdown-item" href="/management/?type=1">기수 관리</a></li>
+                            <li><a class="dropdown-item" href="/management/?type=2">매니저 관리</a></li>
+                            <li><a class="dropdown-item" href="/management/?type=3">비밀번호 변경</a></li>
                         </ul>
                     </li>
                 </ul>
@@ -66,7 +66,9 @@
                             <div class="fw-bold">가입 신청</div>
                             새로운 가입 신청이 {{userCount}}건 있습니다.
                         </div>
+                        {% if userCount %}
                         <span class="badge bg-primary rounded-pill">{{userCount}}</span>
+                        {% endif %}
                     </a>
                     <a class="list-group-item d-flex justify-content-between align-items-start"
                        href="/signupList?type=1">
@@ -74,7 +76,9 @@
                             <div class="fw-bold">멘토 신청</div>
                             새로운 멘토 신청이 {{mentorCount}}건 있습니다.
                         </div>
+                        {% if mentorCount %}
                         <span class="badge bg-primary rounded-pill">{{mentorCount}}</span>
+                        {% endif %}
                     </a>
                     <a class="list-group-item d-flex justify-content-between align-items-start"
                        href="/signupList?type=2">
@@ -82,7 +86,9 @@
                             <div class="fw-bold">멘티 신청</div>
                             새로운 멘티 신청이 {{menteeCount}}건 있습니다.
                         </div>
+                        {% if menteeCount %}
                         <span class="badge bg-primary rounded-pill">{{menteeCount}}</span>
+                        {% endif %}
                     </a>
                     <a class="list-group-item d-flex justify-content-between align-items-start"
                        href="/signupList?type=3">
@@ -90,7 +96,9 @@
                             <div class="fw-bold">멘토&amp;멘티 매칭</div>
                             매칭이 되지 않은 멘토&amp;멘티가 {{matchedCount}}명 있습니다.
                         </div>
+                        {% if matchedCount %}
                         <span class="badge bg-primary rounded-pill">{{matchedCount}}</span>
+                        {% endif %}
                     </a>
                 </ol>
             </div>

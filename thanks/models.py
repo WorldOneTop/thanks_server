@@ -29,6 +29,12 @@ class Telegram(models.Model):
     date = models.DateTimeField(auto_now_add=True, auto_now=False)
     read = models.BooleanField(default=False)
     content = models.CharField(max_length=100)
+    chatRoom = models.ForeignKey("ChatRoom", on_delete=models.CASCADE)
+
+class ChatRoom(models.Model):
+    userId1 = models.ForeignKey("User", on_delete=models.CASCADE, related_name="user1")
+    userId2 = models.ForeignKey("User", on_delete=models.CASCADE, related_name="user2")
+
 
 class Document(models.Model):
     docId = models.BigAutoField(primary_key=True)

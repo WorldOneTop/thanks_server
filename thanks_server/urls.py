@@ -16,11 +16,13 @@ urlpatterns = [
     path('selectDocument/', views.selectDocument),
     path('writeChat/', views.writeChat),
     path('readChat/', views.readChat),
+    path('readLastChat/', views.readLastChat),
     path('createSignup/', views.createSignup),
     
     # ADMIN
     path('admin/', views.admin),
-    path('login/', views.login),
+    path('amdinLogin/', views.amdinLogin),
+    path('amdinLogout/', views.amdinLogout),
     path('detail/', views.userDetail),
     path('adminSearch/', views.adminSearch),
     path('adminSearch/adminMatched/', views.adminMatched),

@@ -46,6 +46,8 @@
                             <li><a class="dropdown-item" href="/management/?type=3">비밀번호 변경</a></li>
                         </ul>
                     </li>
+                    <a class="nav-link " href="/amdinLogout/" role="button" aria-expanded="false">
+                            로그아웃</a>
                 </ul>
             </div>
         </div>
@@ -154,7 +156,7 @@
                     <li class="list-group-item d-flex justify-content-between align-items-start">
                         <div class="ms-2 me-auto">
                             <div class="fw-bold">
-                                {{obj.id}}기 - {{obj.year}}년도 {{obj.semester}}
+                                {{obj.id}}기 - {{obj.year}}년도 {{obj.semester}} ㅣ 멘토 {{obj.mentorCount}}&nbsp;  멘티 {{obj.menteeCount}}
                             </div>
                             <span style="font-size: 0.9em;color: grey;">
                                 {{obj.startDate}} ~ {{obj.endDate}} ㅣ  {{obj.activated}}
@@ -177,7 +179,8 @@
                                      <option value='1' {% if obj.activated == "활동 중" %} selected{% endif %}>활동 중</option>
                                      <option value=''{% if obj.activated == "활동 종료" %} selected{% endif %}>활동 종료</option>
                                  </select>
-                                 <button type="submit" class="btn btn-secondary" style="margin-bottom:5px;font-size:0.8em;">수정</button>
+                                 <button type="submit" class="btn btn-secondary" style="margin-bottom:5px;font-size:0.8em;"
+                                         {% if obj.activated == "활동 종료" %} disabled{% endif %}>수정</button>
                             </form>
                         </div>
                     </li>

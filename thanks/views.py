@@ -1,14 +1,13 @@
 from django.shortcuts import render
 from django.http import HttpResponse
-from .models import User, Mentor, Mentee, Telegram, Document, Manager, Signup, Term, Reject
+from .models import User, Mentor, Mentee, Telegram, Document, Manager, Signup, Term, Reject, ChatRoom
 import json
-from django.db.models.functions import Cast
-# from django.db.models import TextField,Value
-from datetime import datetime
 from django.core.exceptions import *
 from django.shortcuts import render
 from django.shortcuts import redirect
 from django.db import transaction
+from django.db import IntegrityError
+from django.db.models import Count
 
 import os
 
@@ -18,6 +17,7 @@ MAX_MENTEE = 5
 def index(request):
     return HttpResponse("hello world")
 
+"""        USER        """
 def createUser(request): # args : {userId: 8자리 숫자, pw, name }
     try:
         catchError = checkUser(**(request.GET.dict()))
@@ -29,10 +29,62 @@ def createUser(request): # args : {userId: 8자리 숫자, pw, name }
         User.objects.create(**data)
     except KeyError:
         return HttpResponse('{"status":"not enough data"}')
+    except IntegrityError:
+        return HttpResponse('{"status":"already exist user"}')
     
     return HttpResponse('{"status":"OK"}')
 
+def login(request): # args : {userId, pw}
+    try:
+        user = User.objects.get(pk=request.GET['userId'])
+        if(user.pw != request.GET['pw']):
+            return HttpResponse('{"status":"Password does not matched"}')
+        
+    except User.DoesNotExist:
+        return HttpResponse('{"status":"User does not exist"}')
+    
+    return HttpResponse('{"status":"OK"}')
 
+# 멘토 or 멘티 신청 
+def createSignup(request): # args : userId, term(기수), userType(1:멘토,0:멘티)
+    try:
+        catchError = checkMen(**(request.GET.dict()))
+        if(catchError != "OK"):
+            return HttpResponse('{"status":"'+catchError+'"}')
+        
+        user = User.objects.get(pk=request.GET['userId'])
+        
+        if(user.status == 0):
+            return HttpResponse('{"status":"user is not activated"}')
+        if(user.status != 1):
+            return HttpResponse('{"status":"user is already have type"}')
+        if(not Mentee.objects.filter(userId=request.GET['userId'])):
+            return HttpResponse('{"status":"user have never been mentee"}')
+        
+        term = Term.objects.get(pk=request.GET['term'])
+        if(term.activated != False):
+            return HttpResponse('{"status":"not recruitment term"}')
+        
+        data = {'userId':user,"term":term}
+        
+        if(request.GET['userType'] == '1'):
+            Mentor.objects.create(**data)
+            user.status = 2
+            user.save()
+        elif(request.GET['userType'] == '0'):
+            Mentee.objects.create(**data)
+            user.status = 3
+            user.save()
+            
+    except KeyError:
+        return HttpResponse('{"status":"not enough data"}')
+    except User.DoesNotExist:
+        return HttpResponse('{"status":"user does not exist"}')
+    except Term.DoesNotExist:
+        return HttpResponse('{"status":"term does not exist"}')
+    return HttpResponse('{"status":"OK"}')
+
+"""        DOCUMENT        """
 def create5Thanks(request):# args : userId, data:'["content~", ...]'
     try:
         data = json.loads(request.GET['data'])
@@ -70,7 +122,7 @@ def create1Doc(request): # agrgs : userId, docType, content, fileUrl?
         data = {'userId':User.objects.get(pk=request.GET['userId']), 'docType': request.GET['docType'], 'content':request.GET['content']}
         
         if(data['docType'] == "2"):
-            if(not 'fileUrl' in request.GET):
+            if(not 'fileUrl' in request.GET): # 테스트 해보고 바꿔야함@@@@@@@@
                 return HttpResponse('{"status":"required fileUrl"}')
             data['fileUrl'] = request.GET['fileUrl']
             
@@ -84,117 +136,21 @@ def create1Doc(request): # agrgs : userId, docType, content, fileUrl?
 
 
 def updateDocument(request):
-    # obj = Document.objects.get(pk=8)
-    # obj.registerDate = datetime(2022,1,7).date()
-    # obj.save()
     return HttpResponse("hello world")
-
-def deleteDocument(request):
-    return HttpResponse("hello world")
-
-
-def writeChat(request): # args :  senderId, receiverId, content
-    try:
-        catchError = checkChat(**(request.GET.dict()))
-        if(catchError != "OK"):
-            return HttpResponse('{"status":"'+catchError+'"}')
-        
-        data = {'content':request.GET['content']}
-        data['senderId'] = User.objects.get(pk=request.GET['senderId'])
-        data['receiverId'] = User.objects.get(pk=request.GET['receiverId'])
-        
-        
-        Telegram.objects.create(**data)
-    except KeyError:
-        return HttpResponse('{"status":"not enough data"}')
-    except User.DoesNotExist:
-        return HttpResponse('{"status":"user does not exist"}')
-    return HttpResponse('{"status":"OK"}')
-
-# 채팅방 들어갔을 때 그동안 기록 전부 담기? or 못받은 데이터만 하기? 
-# 일단은 전부 
-# 후자는 폰에 데이터 저장 따로해서 처리 복잡하지만 서버부하줄이고 속도향상 기대
-# 전자는 서버부하 가능성있지만 앱단에서 처리 쉬움
-def readChat(request): # args : senderId, receiverId
-    try:
-        catchError = checkChat(**(request.GET.dict()))
-        if(catchError != "OK"):
-            return HttpResponse('{"status":"'+catchError+'"}')
-        
-        
-        
-    except KeyError:
-        return HttpResponse('{"status":"not enough data"}')
-    except User.DoesNotExist:
-        return HttpResponse('{"status":"user does not exist"}')
-    return HttpResponse('{"status":"OK"}')
-
-# 마지막 대화와 안읽은 개수 확인
-def readLastChat(request): # args: user:["user id", ...], 
-    try:
-        catchError = checkChat(**(request.GET.dict()))
-        if(catchError != "OK"):
-            return HttpResponse('{"status":"'+catchError+'"}')
-        
-        
-        # annotate? -> count?
-    except KeyError:
-        return HttpResponse('{"status":"not enough data"}')
-    except User.DoesNotExist:
-        return HttpResponse('{"status":"user does not exist"}')
-    return HttpResponse('{"status":"OK"}')
-
-# 멘토 or 멘티 신청 
-def createSignup(request): # args : userId, term(기수), userType(1:멘토,0:멘티)
-    try:
-        catchError = checkMen(**(request.GET.dict()))
-        if(catchError != "OK"):
-            return HttpResponse('{"status":"'+catchError+'"}')
-        
-        user = User.objects.get(pk=request.GET['userId'])
-        
-        if(user.status == 0):
-            return HttpResponse('{"status":"user is not activated"}')
-        if(user.status != 1):
-            return HttpResponse('{"status":"user is already have type"}')
-        
-        term = Term.objects.get(pk=request.GET['term'])
-        if(term.activated != False):
-            return HttpResponse('{"status":"not recruitment term"}')
-        
-        data = {'userId':user,"term":Term.objects.get(pk=request.GET['term'])}
-        
-        if(request.GET['userType'] == '1'):
-            Mentor.objects.create(**data)
-            user.status = 2
-            user.save()
-        elif(request.GET['userType'] == '0'):
-            Mentee.objects.create(**data)
-            user.status = 3
-            user.save()
-            
-    except KeyError:
-        return HttpResponse('{"status":"not enough data"}')
-    except User.DoesNotExist:
-        return HttpResponse('{"status":"user does not exist"}')
-    except Term.DoesNotExist:
-        return HttpResponse('{"status":"term does not exist"}')
-    return HttpResponse('{"status":"OK"}')
 
 def selectDocument(request): # args : userId, date:yyyy-mm-dd
     try:
         yearMonth = request.GET['date'][0:8]
-        result = list(Document.objects.filter(userId=User.objects.get(
-            pk=request.GET['userId']), registerDate=request.GET['date'],
+        result = list(Document.objects.filter(userId=request.GET['userId'], registerDate=request.GET['date'],
             docType__gte=1, docType__lt=5).exclude(docType=3).values(
-                'docType','content','fileUrl'
+                'docId','docType','content','fileUrl'
         ))
-        book =  Document.objects.filter(userId=User.objects.get(
-            pk=request.GET['userId']), docType=3, registerDate__range=[(yearMonth+"01"), (yearMonth+"31")]).values(
-            'docType','content','fileUrl'
-        )
-        if(len(book) == 1): # 한달에 한권만 등록
-            result.append(book[0])
+        book =  list(Document.objects.filter(userId=request.GET['userId'],
+                                        docType=3, registerDate__range=[(yearMonth+"01"), (yearMonth+"31")]).values(
+            'docId','docType','content','fileUrl'
+        ))
+        for b in book:
+            result.append(b)
             
     except User.DoesNotExist:
         return HttpResponse('{"status":"user does not exist"}')
@@ -204,12 +160,104 @@ def selectDocument(request): # args : userId, date:yyyy-mm-dd
         return HttpResponse('{"status":"date format not recognized"}')
     
     result = json.dumps(result, ensure_ascii=False)
-    return HttpResponse('{"status":"OK","data":"'+result+'"}')# data: [{docType, title, content, fileUrl}, ...] 
+    return HttpResponse('{"status":"OK","data":"'+result+'"}')# data: [{docId, docType, title, content, fileUrl}, ...] 
+
+def deleteDocument(request): # args : docId
+    try:
+        Document.objects.get(pk=request.GET['docId']).delete()
+    except Document.DoesNotExist:
+        return HttpResponse('{"status":"document does not exist"}')
+    return HttpResponse('{"status":"OK"}')
+
+
+"""        CHANTTING        """
+def writeChat(request): # args : senderId, receiverId, content, chatRoom(없어도 됨, 있으면 쿼리안함)
+    try:
+        catchError = checkChat(**(request.GET.dict()))
+        if(catchError != "OK"):
+            return HttpResponse('{"status":"'+catchError+'"}')
+        
+        data = {'content':request.GET['content']}
+        data['senderId'] = User.objects.get(pk=request.GET['senderId'])
+        data['receiverId'] = User.objects.get(pk=request.GET['receiverId'])
+        
+        if('chatRoom' not in request.GET):
+            query1 = ChatRoom.objects.filter(userId1=request.GET['senderId'],userId2=request.GET['receiverId']).values('id')
+            query2 = ChatRoom.objects.filter(userId2=request.GET['senderId'],userId1=request.GET['receiverId']).values('id')
+            
+            if(len(query1) != 0):
+                data['chatRoom'] = ChatRoom.objects.get(pk=query1[0]['id'])
+            elif(len(query2) != 0):
+                data['chatRoom'] = ChatRoom.objects.get(pk=query2[0]['id'])
+            else:
+                room = ChatRoom.objects.create(**{'userId1':data['senderId'],'userId2':data['receiverId']})
+                data['chatRoom'] = room
+        else:
+            data['chatRoom'] = ChatRoom.objects.get(pk=request.GET['chatRoom'])
+            
+        Telegram.objects.create(**data)
+    except KeyError:
+        return HttpResponse('{"status":"not enough data"}')
+    except User.DoesNotExist:
+        return HttpResponse('{"status":"user does not exist"}')
+    except ChatRoom.DoesNotExist:
+        return HttpResponse('{"status":"ChatRoom does not exist"}')
+    return HttpResponse('{"status":"OK","roomId":"'+str(data['chatRoom'].id)+'"}')
+
+# 채팅방 들어갔을 때 그동안 기록 전부 담기? or 못받은 데이터만 하기? 
+# 후자는 폰에 데이터 저장 따로해서 처리 복잡하지만 서버부하줄이고 속도향상 기대
+# 전자는 서버부하 가능성있지만 앱단에서 처리 쉬움
+
+def readChat(request): # args : userId, chatRoom
+    try:
+        if(not checkId(request.GET['userId'])):
+            return HttpResponse('{"status":"user id is not matched format"}')
+        
+        Telegram.objects.filter(chatRoom=request.GET['chatRoom'], receiverId=request.GET['userId'],read=False).update(read=True)
+        result = list(Telegram.objects.filter(chatRoom=request.GET['chatRoom']).values('receiverId','senderId','date','content','read'
+                                                                                      ).order_by('date')) # 옛날 -> 최신 순
+        
+        for r in result:
+            r['date'] = r['date'].strftime("%Y.%m.%d %p %I:%M")
+        
+    except KeyError:
+        return HttpResponse('{"status":"not enough data"}')
+    except ChatRoom.DoesNotExist:
+        return HttpResponse('{"status":"ChatRoom does not exist"}')
+    result = json.dumps(result, ensure_ascii=False)
+    return HttpResponse('{"status":"OK","data":"'+result+'"}')
+
+# 마지막 대화와 안읽은 개수 확인
+def readLastChat(request): # args: userId
+    try:
+        if(not checkId(request.GET['userId'])):
+            return HttpResponse('{"status":"user id is not matched format"}')
+        result = []
+        rooms = (ChatRoom.objects.filter(userId1=request.GET['userId'])
+                | ChatRoom.objects.filter(userId2=request.GET['userId'])).values('id')
+        
+        for room in rooms:
+            result.append({'lastChat':Telegram.objects.filter(chatRoom=room['id']).values(
+                'content','senderId','date','chatRoom').last(),
+                           'count':Telegram.objects.filter(chatRoom=room['id'],read=False).count()
+            })
+            # result[-1]['lastChat']['date'] = result[-1]['lastChat']['date'].strftime("%Y.%m.%d %p %I:%M")
+        sortResult = sorted(result, key=lambda r: r['lastChat']['date'],reverse=True) # 최신 -> 옛날 순
+        for s in sortResult:
+            s['lastChat']['date'] = s['lastChat']['date'].strftime("%Y.%m.%d %p %I:%M")
+            
+    except KeyError:
+        return HttpResponse('{"status":"not enough data"}')
+
+    result = json.dumps(sortResult, ensure_ascii=False)
+    return HttpResponse('{"status":"OK","data":"'+result+'"}')
+    # return : {data :[{'lastChat':{'content':'','senderId':'','date':'','chatRoom':''},'count':''}, ...]
+
 
 """        ADMIN PAGE       """
 def admin(request):
     if (not (request.session.get('id') or request.session.get('admin'))):
-        return redirect('/login/');
+        return redirect('/amdinLogin/');
     result = {}
     result['userCount'] = User.objects.filter(status=0).count()
     result['mentorCount'] = Mentor.objects.filter(activated=False).count()
@@ -224,23 +272,23 @@ def admin(request):
 
 def signupList(request):
     if (not (request.session.get('id') or request.session.get('admin'))):
-        return redirect('/login/');
+        return redirect('/amdinLogin/');
     
     if('type' not in request.GET):
         result = {'type':'0'}
     else:
         result = {'type':request.GET['type']}
         
-    if(request.GET['type'] == '0'): # 가입신청
+    if(result['type'] == '0'): # 가입신청
         result['data'] = list(User.objects.filter(status=0).values('userId','name','registerDate'))
     else:
-        if(request.GET['type'] == '1'): # 멘토신청
+        if(result['type'] == '1'): # 멘토신청
             result['data'] = Mentor.objects.select_related().filter(activated=False).values(
                 'mentorId','userId','userId__name','term__year','term__semester','term__id')
-        elif(request.GET['type'] == '2'): # 멘티신청
+        elif(result['type'] == '2'): # 멘티신청
             result['data'] = Mentee.objects.select_related().filter(activated=False).values(
                 'menteeId','userId','userId__name','term__year','term__semester','term__id')
-        elif(request.GET['type'] == '3'): # 멘티 멘티 매칭
+        elif(result['type'] == '3'): # 멘티 멘티 매칭
             q1 = Mentor.objects.select_related().filter(term__activated=False,activated=True,
                 matchedNum__lt=MAX_MENTEE).values('userId','userId__name','term__year','term__semester','matchedNum','term__id','mentorId')
             q2 = Mentee.objects.select_related().filter(term__activated=False,
@@ -254,7 +302,7 @@ def signupList(request):
 
 def management(request):
     if (not (request.session.get('id') or request.session.get('admin'))):
-        return redirect('/login/');
+        return redirect('/amdinLogin/');
     
     if('type' not in request.GET):
         result = {'type':'0'}
@@ -267,7 +315,7 @@ def management(request):
     if(result['type'] == '0'):
         result['data'] = getUserData()
     elif(result['type'] == '1'):
-        result['data'] = termToStr(list(Term.objects.all().values()))
+        result['data'] = getTermDate()
         result['lastTerm'] = Term.objects.all().count()+1
     elif(result['type'] == '2'):
         result['data'] = list(Manager.objects.all().values('adminId'))
@@ -276,7 +324,12 @@ def management(request):
     
     return render(request, 'management.html', result)
 
-def login(request):
+def amdinLogin(request):
+    return render(request, 'login.html')
+
+def amdinLogout(request):
+    request.session.flush()
+    request.session.clear_expired()
     return render(request, 'login.html')
 
 
@@ -287,19 +340,21 @@ def userDetail(request):
     
     if(user['status'] == 4):
         mentor = Mentor.objects.get(userId=uId, activated=True)
+        user['term'] = mentor.term_id
         if(mentor.matchedNum == 0):
             user['add'] = {'none' : True}
         else:
             user['add'] = Mentee.objects.select_related('userId').filter(mentorId=mentor).values('userId_id','userId__name')
-            user['term'] = mentor.term_id
+            
         
     elif(user['status'] == 5):
         mentee = Mentee.objects.select_related('mentorId').get(userId=uId, activated = True)
+        user['term'] = mentee.term_id
         if(mentee.mentorId == None):
             user['add'] = {'none' : True}
         else:
             user['add'] = [{'userId_id':mentee.mentorId.userId_id, 'userId__name':mentee.mentorId.userId.name}]
-            user['term'] = mentee.term_id
+            
     
     mentorRows = Mentee.objects.select_related().filter(
         mentorId__userId=uId, activated=None).values('term','userId','userId__name','term__startDate','term__endDate').order_by('term')
@@ -327,7 +382,7 @@ def userDetail(request):
     
     return render(request, 'detail.html', result)
 
-def adminSearch(request): 
+def adminSearch(request):
     result = request.GET.dict()
     if(request.GET['type'] == '1'): # 맨토를 검색
         result['myType'] = '멘티'
@@ -527,6 +582,19 @@ def getUserData():
             
     return q0 #+ q1 + q2
 
+def getTermDate():
+    result = Term.objects.all().values()
+    for obj in result:
+        obj['mentorCount'] = Mentor.objects.filter(term = obj['id']).count()
+        obj['menteeCount'] = Mentee.objects.filter(term = obj['id']).count()
+        if(obj['activated'] == None):
+            obj['activated'] = '활동 종료'
+        elif(obj['activated']):
+            obj['activated'] = '활동 중'
+        else:
+            obj['activated'] = '모집 중'
+            
+    return result
 
 def statusToStr(objects):
     for obj in objects:
@@ -590,7 +658,8 @@ def checkChat(**kwargs):
         return "same sender and reciver"
     if('content' in kwargs and not kwargs['content'] or 100 < len(kwargs['content'])):
         return "content is empty or too long"
-   
+    return "OK"
+
 def checkMen(**kwargs):
     if('userId' in kwargs and not checkId(kwargs['userId'])):
         return "id is not matched format"

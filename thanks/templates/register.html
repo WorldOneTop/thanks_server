@@ -46,6 +46,8 @@
                             <li><a class="dropdown-item" href="/management/?type=3">비밀번호 변경</a></li>
                         </ul>
                     </li>
+                    <a class="nav-link " href="/amdinLogout/" role="button" aria-expanded="false">
+                            로그아웃</a>
                 </ul>
             </div>
         </div>
@@ -200,6 +202,11 @@ onclick="openPopup('/adminSearch?type=1&id={{obj.menteeId}}&term={{obj.term__id}
             });
         }
         function openReject(userId,menId){
+            if (event.stopPropagation)
+                event.stopPropagation();
+            else 
+                event.cancelBubble = true;
+            
             var reason = prompt('거절 사유');
             if(reason){
                 location.href= "./acceptReject/?userId="+userId+"&reason="+reason+"&menId="+menId+"&type={{type}}"

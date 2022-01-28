@@ -45,7 +45,7 @@
       <td>{{user.name}}</td>
       <td>{{user.userId}}</td>
       <td>{{user.registerDate}}</td>
-      <td>{% if user.add and not user.add.none %}
+      <td>{% if user.term %}
           {{ user.term }}기
           {% endif %}
           {{user.statusStr}}

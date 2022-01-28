@@ -86,6 +86,7 @@ DATABASES = {
     }
 }
 
+SESSION_COOKIE_AGE = 60 * 60 * 8 # 초 / 분 / 시간
 
 # Password validation
 # https://docs.djangoproject.com/en/2.2/ref/settings/#auth-password-validators

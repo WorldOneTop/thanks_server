@@ -8,6 +8,7 @@ from django.shortcuts import redirect
 from django.db import transaction
 from django.db import IntegrityError
 from django.db.models import Count
+from django.views.decorators.csrf import csrf_exempt 
 
 import os
 
@@ -15,7 +16,7 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MAX_MENTEE = 5
 
 def index(request):
-    return HttpResponse("hello world")
+    return render(request, 'pre_register.html')
 
 """        USER        """
 def createUser(request): # args : {userId: 8자리 숫자, pw, name }
@@ -85,6 +86,31 @@ def createSignup(request): # args : userId, term(기수), userType(1:멘토,0:�
     return HttpResponse('{"status":"OK"}')
 
 """        DOCUMENT        """
+
+# type 별로 통합적으로 생성  1: 감사 2: 선행, 3: 독후감, 4: 절약, 5: 공모전
+
+@csrf_exempt
+def createDoc(request): # agrgs : userId, docType, content, image?
+    try:
+        catchError = checkDocument(**(request.GET.dict()))
+        if(catchError != "OK"):
+            return HttpResponse('{"status":"'+catchError+'"}')
+        
+        data = {'userId':User.objects.get(pk=request.GET['userId']), 'docType': request.GET['docType'], 'content':request.GET['content']}
+        
+        if(data['docType'] == "2"):
+            if(not 'image' in request.FILES): 
+                return HttpResponse('{"status":"required fileUrl"}')
+            data['fileUrl'] = request.FILES['image']
+            
+        Document.objects.create(**data)
+    except KeyError:
+        return HttpResponse('{"status":"not enough data"}')
+    except User.DoesNotExist:
+        return HttpResponse('{"status":"user does not exist"}')
+    
+    return HttpResponse('{"status":"OK"}')
+
 def create5Thanks(request):# args : userId, data:'["content~", ...]'
     try:
         data = json.loads(request.GET['data'])
@@ -255,6 +281,21 @@ def readLastChat(request): # args: userId
 
 
 """        ADMIN PAGE       """
+def preRegisterUpload(request): # 파일 원형 : [["학번","학과","이름","전화번호","비밀번호"]]
+    result = request.POST.dict()
+    del result['csrfmiddlewaretoken']
+    with open(BASE_DIR+'/waitSignup.json', 'r') as f:
+        jf = json.load(f)
+        
+        for item in jf:
+            if(item[0] == result['studentNumber']):
+                return HttpResponse("<script>alert('등록이 된 사용자입니다.');history.back();</script>")
+            
+        jf.append(list(result.values()))
+        with open(BASE_DIR+'/waitSignup.json', 'w') as outfile:
+            json.dump(jf, outfile, indent=4, ensure_ascii=False)
+    return HttpResponse("<script>alert('등록되었습니다.');history.back();</script>")
+
 def admin(request):
     if (not (request.session.get('id') or request.session.get('admin'))):
         return redirect('/amdinLogin/');
@@ -267,6 +308,12 @@ def admin(request):
     result['managerLen'] = Manager.objects.all().count()
     result['termMax'] = Term.objects.all().count()
     result['studentLen'] = User.objects.all().count()
+    
+    
+    with open(BASE_DIR+'/waitSignup.json', 'r') as f:
+        jf = json.load(f)
+        result['waitSignup'] = jf
+        result['waitSignupLen'] = len(jf) -1
     
     return render(request, 'overview.html', result);
 

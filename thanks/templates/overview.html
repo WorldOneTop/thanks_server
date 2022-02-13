@@ -10,6 +10,10 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-ka7Sk0Gln4gmtz2MlQnikT1wXgYsOg+OMhuP+IlRH9sENBO0LRn5q+8nbTov4+1p" crossorigin="anonymous">
     </script>
 
+<!-- SheetJS -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.14.3/xlsx.full.min.js"></script>
+<!-- FileSaver savaAs 이용 -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/1.3.8/FileSaver.min.js"></script>
 </head>
 
 <body style="padding-bottom:100px">
@@ -102,6 +106,7 @@
                         <span class="badge bg-primary rounded-pill">{{matchedCount}}</span>
                         {% endif %}
                     </a>
+                    <a href="#" onclick="waitSignupDownload();" style="text-align:end">사전등록 {{ waitSignupLen }}명</a>
                 </ol>
             </div>
 
@@ -150,6 +155,37 @@
             <div class="col-2 d-none d-lg-block"></div>
         </div>
     </div>
+    
+    <script>
+    function waitSignupDownload(){ 
+        var wb = XLSX.utils.book_new();
+        var newWorksheet = excelHandler.getWorksheet();
+        XLSX.utils.book_append_sheet(wb, newWorksheet, excelHandler.getSheetName());
+        var wbout = XLSX.write(wb, {bookType:'xlsx',  type: 'binary'});
+        saveAs(new Blob([s2ab(wbout)],{type:"application/octet-stream"}), excelHandler.getExcelFileName());
+    }
+        var excelHandler = {
+            getExcelFileName : function(){
+                return '한림 감사운동 사전등록 명단.xlsx';
+            },
+            getSheetName : function(){
+                return 'sheet1';
+            },
+            getExcelData : function(){
+                return {{ waitSignup|safe }};
+            },
+            getWorksheet : function(){
+                return XLSX.utils.aoa_to_sheet(this.getExcelData());
+            }
+        }
+        function s2ab(s) { 
+            var buf = new ArrayBuffer(s.length); //convert s to arrayBuffer
+            var view = new Uint8Array(buf);  //create uint8array as viewer
+            for (var i=0; i<s.length; i++) view[i] = s.charCodeAt(i) & 0xFF; //convert to octet
+            return buf;    
+        }
+    
+    </script>
 </body>
 
 </html>

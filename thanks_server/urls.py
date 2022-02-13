@@ -10,6 +10,7 @@ urlpatterns = [
     path('checkLogin/', views.checkLogin),
     path('createUser/', views.createUser),
     path('create5Thanks/', views.create5Thanks),
+    path('createDoc/', views.createDoc),
     path('create1Doc/', views.create1Doc),
     path('updateDocument/', views.updateDocument),
     path('deleteDocument/', views.deleteDocument),
@@ -20,6 +21,7 @@ urlpatterns = [
     path('createSignup/', views.createSignup),
     
     # ADMIN
+    path('preRegisterUpload/', views.preRegisterUpload),
     path('admin/', views.admin),
     path('amdinLogin/', views.amdinLogin),
     path('amdinLogout/', views.amdinLogout),

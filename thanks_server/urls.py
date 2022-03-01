@@ -7,11 +7,11 @@ from django.conf import settings
 
 urlpatterns = [
     path('', views.index),
-    path('checkLogin/', views.checkLogin),
     path('createUser/', views.createUser),
-    path('create5Thanks/', views.create5Thanks),
+    path('userLogin/', views.userLogin),
+    path('accountInfo/', views.accountInfo),
+    path('selectTerm/', views.selectTerm),
     path('createDoc/', views.createDoc),
-    path('create1Doc/', views.create1Doc),
     path('updateDocument/', views.updateDocument),
     path('deleteDocument/', views.deleteDocument),
     path('selectDocument/', views.selectDocument),
@@ -24,6 +24,7 @@ urlpatterns = [
     path('preRegisterUpload/', views.preRegisterUpload),
     path('admin/', views.admin),
     path('amdinLogin/', views.amdinLogin),
+    path('checkLogin/', views.checkLogin),
     path('amdinLogout/', views.amdinLogout),
     path('detail/', views.userDetail),
     path('adminSearch/', views.adminSearch),

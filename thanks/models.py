@@ -41,7 +41,7 @@ class Document(models.Model):
     userId = models.ForeignKey("User", on_delete=models.CASCADE)
     registerDate = models.DateField(auto_now_add=True, auto_now=False)
     content = models.TextField()
-    docType = models.PositiveSmallIntegerField() # 1: 5감사, 2: 선행, 3: 독후감, 4: 절약
+    docType = models.PositiveSmallIntegerField() # 0:5감사, 1:절약, 2:선행, 3:독후감
     fileUrl = models.ImageField(upload_to="%Y-%m", null=True)
 
 class Contest(models.Model):

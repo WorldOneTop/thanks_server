@@ -35,17 +35,47 @@ def createUser(request): # args : {userId: 8자리 숫자, pw, name }
     
     return HttpResponse('{"status":"OK"}')
 
-def login(request): # args : {userId, pw}
-    try:
-        user = User.objects.get(pk=request.GET['userId'])
-        if(user.pw != request.GET['pw']):
-            return HttpResponse('{"status":"Password does not matched"}')
+def userLogin(request): # args : {userId, pw}
+    # try:
+    #     user = User.objects.get(pk=request.GET['userId'])
+    #     if(user.pw != request.GET['pw']):
+    #         return HttpResponse('{"status":"Password does not matched"}')
         
-    except User.DoesNotExist:
-        return HttpResponse('{"status":"User does not exist"}')
+    # except User.DoesNotExist:
+    #     return HttpResponse('{"status":"User does not exist"}')
     
     return HttpResponse('{"status":"OK"}')
 
+def accountInfo(request): # args : userId
+    try:
+        user = User.objects.get(pk=request.GET['userId'])
+        result = {"id":user.userId,"name":user.name,"registerDate":str(user.registerDate)}
+        result['documents'] = list(Document.objects.filter(userId=user).values('docType').annotate(count=Count('docType')))
+    except KeyError:
+        return HttpResponse('{"status":"not enough data"}')
+    except User.DoesNotExist:
+        return HttpResponse('{"status":"user does not exist"}')
+    
+    result = json.dumps(result, ensure_ascii=False)
+    return HttpResponse('{"status":"OK","data":'+result+'}') # "data":"{"id": , "name": , "registerDate": , "documents": }
+
+"""        Term       """
+def selectTerm(request): # args : activated(Boolean?(0, 1, False, True X))
+    try:
+        if("activated" in request.GET):
+            result = list(Term.objects.filter(activated = request.GET['activated']).values('id','startDate','endDate','activated'))
+        else:
+            result = list(Term.objects.values('id','startDate','endDate','activated'))
+
+        for r in result:
+            r['startDate'] = str(r['startDate'])
+            r['endDate'] = str(r['endDate'])
+        
+    except ValidationError:
+        return HttpResponse('{"status":"date format not recognized"}')
+    result = json.dumps(result, ensure_ascii=False)
+    return HttpResponse('{"status":"OK","data":'+result+'}') # "data":[{"id": 0, "startDate": "", "endDate": "", "activated": null }]
+    
 # 멘토 or 멘티 신청 
 def createSignup(request): # args : userId, term(기수), userType(1:멘토,0:멘티)
     try:
@@ -84,13 +114,13 @@ def createSignup(request): # args : userId, term(기수), userType(1:멘토,0:�
     except Term.DoesNotExist:
         return HttpResponse('{"status":"term does not exist"}')
     return HttpResponse('{"status":"OK"}')
-
+    
 """        DOCUMENT        """
 
 # type 별로 통합적으로 생성  1: 감사 2: 선행, 3: 독후감, 4: 절약, 5: 공모전
 
 @csrf_exempt
-def createDoc(request): # agrgs : userId, docType, content, image?
+def createDoc(request): # args : userId, docType, content, image?
     try:
         catchError = checkDocument(**(request.GET.dict()))
         if(catchError != "OK"):
@@ -103,76 +133,28 @@ def createDoc(request): # agrgs : userId, docType, content, image?
                 return HttpResponse('{"status":"required fileUrl"}')
             data['fileUrl'] = request.FILES['image']
             
-        Document.objects.create(**data)
+        obj = Document.objects.create(**data)
+        result = {"docId":obj.docId, "content":obj.content, "docType":int(obj.docType), "registerDate": obj.registerDate.strftime("%Y-%m-%d"), "fileUrl": obj.fileUrl if obj.fileUrl else ""}
     except KeyError:
         return HttpResponse('{"status":"not enough data"}')
     except User.DoesNotExist:
         return HttpResponse('{"status":"user does not exist"}')
     
-    return HttpResponse('{"status":"OK"}')
-
-def create5Thanks(request):# args : userId, data:'["content~", ...]'
-    try:
-        data = json.loads(request.GET['data'])
-        checkData = ""
-        userId = User.objects.get(pk=request.GET['userId'])
-        inputData = [] # 필요한 인수만 넣기 위해서
-
-        for val in data:
-            if(not val):
-                return HttpResponse('{"status":"content is empty"}')
-            inputData.append({'userId':userId, 'docType':1, 'content':val})
-        
-        for val in inputData:
-            Document.objects.create(**val)
-        
-    except ValueError:
-        return HttpResponse('{"status":"data json decode error"}')
-    except KeyError:
-        return HttpResponse('{"status":"not enough data"}')
-    except User.DoesNotExist:
-        return HttpResponse('{"status":"user does not exist"}')
-    
-    return HttpResponse('{"status":"OK"}')
-
-# type 별로 통합적으로 생성  2: 선행, 3: 독후감, 4: 절약, 5: 공모전
-def create1Doc(request): # agrgs : userId, docType, content, fileUrl?
-    try:
-        if(request.GET['docType'] == "1"):
-            return HttpResponse('{"status":"not this url"}')
-        
-        catchError = checkDocument(**(request.GET.dict()))
-        if(catchError != "OK"):
-            return HttpResponse('{"status":"'+catchError+'"}')
-        
-        data = {'userId':User.objects.get(pk=request.GET['userId']), 'docType': request.GET['docType'], 'content':request.GET['content']}
-        
-        if(data['docType'] == "2"):
-            if(not 'fileUrl' in request.GET): # 테스트 해보고 바꿔야함@@@@@@@@
-                return HttpResponse('{"status":"required fileUrl"}')
-            data['fileUrl'] = request.GET['fileUrl']
-            
-        Document.objects.create(**data)
-    except KeyError:
-        return HttpResponse('{"status":"not enough data"}')
-    except User.DoesNotExist:
-        return HttpResponse('{"status":"user does not exist"}')
-    
-    return HttpResponse('{"status":"OK"}')
-
+    result = json.dumps(result, ensure_ascii=False)
+    return HttpResponse('{"status":"OK","data":'+result+'}') # return {"status":"OK","data":{"docId": 0, "content": "", "docType": 0, "registerDate": "", "fileUrl": ""}}
 
 def updateDocument(request):
     return HttpResponse("hello world")
 
 def selectDocument(request): # args : userId, date:yyyy-mm-dd
     try:
-        yearMonth = request.GET['date'][0:8]
-        result = list(Document.objects.filter(userId=request.GET['userId'], registerDate=request.GET['date'],
-            docType__gte=1, docType__lt=5).exclude(docType=3).values(
+        year = request.GET['date'][0:4]
+        month = request.GET['date'][5:7]
+        result = list(Document.objects.filter(userId=request.GET['userId'], registerDate=request.GET['date'], docType__lt=3).values(
                 'docId','docType','content','fileUrl'
         ))
         book =  list(Document.objects.filter(userId=request.GET['userId'],
-                                        docType=3, registerDate__range=[(yearMonth+"01"), (yearMonth+"31")]).values(
+                                        docType=3, registerDate__year=year, registerDate__month=month).values(
             'docId','docType','content','fileUrl'
         ))
         for b in book:
@@ -186,7 +168,7 @@ def selectDocument(request): # args : userId, date:yyyy-mm-dd
         return HttpResponse('{"status":"date format not recognized"}')
     
     result = json.dumps(result, ensure_ascii=False)
-    return HttpResponse('{"status":"OK","data":"'+result+'"}')# data: [{docId, docType, title, content, fileUrl}, ...] 
+    return HttpResponse('{"status":"OK","data":'+result+'}')# data: [{docId, docType, title, content, fileUrl}, ...] 
 
 def deleteDocument(request): # args : docId
     try:
@@ -251,7 +233,7 @@ def readChat(request): # args : userId, chatRoom
     except ChatRoom.DoesNotExist:
         return HttpResponse('{"status":"ChatRoom does not exist"}')
     result = json.dumps(result, ensure_ascii=False)
-    return HttpResponse('{"status":"OK","data":"'+result+'"}')
+    return HttpResponse('{"status":"OK","data":'+result+'}')
 
 # 마지막 대화와 안읽은 개수 확인
 def readLastChat(request): # args: userId
@@ -276,10 +258,10 @@ def readLastChat(request): # args: userId
         return HttpResponse('{"status":"not enough data"}')
 
     result = json.dumps(sortResult, ensure_ascii=False)
-    return HttpResponse('{"status":"OK","data":"'+result+'"}')
+    return HttpResponse('{"status":"OK","data":'+result+'}')
     # return : {data :[{'lastChat':{'content':'','senderId':'','date':'','chatRoom':''},'count':''}, ...]
 
-
+    
 """        ADMIN PAGE       """
 def preRegisterUpload(request): # 파일 원형 : [["학번","학과","이름","전화번호","비밀번호"]]
     result = request.POST.dict()
@@ -289,7 +271,7 @@ def preRegisterUpload(request): # 파일 원형 : [["학번","학과","이름","
         
         for item in jf:
             if(item[0] == result['studentNumber']):
-                return HttpResponse("<script>alert('등록이 된 사용자입니다.');history.back();</script>")
+                return HttpResponse("<script>alert('등록이 완료된 사용자입니다.');history.back();</script>")
             
         jf.append(list(result.values()))
         with open(BASE_DIR+'/waitSignup.json', 'w') as outfile:
@@ -692,8 +674,8 @@ def checkDocument(**kwargs):
         return "content is empty"
     # if('fileUrl' in kwargs and not kwargs['fileUrl']): # 파일은 다른 처리 필요
     #     return "file url is empty"
-    if('docType' in kwargs and not('1' <= kwargs['docType'] and kwargs['docType'] <= '5')):
-        return "document type is not matched format"
+    if('docType' in kwargs and not('0' <= kwargs['docType'] and kwargs['docType'] <= '3')):
+        return "document type is not matched format   docType:" + kwargs['docType']
     return "OK"
 
 def checkChat(**kwargs):

@@ -41,13 +41,14 @@ ALLOWED_HOSTS = [".run.goorm.io"]
 # Application definition
 
 INSTALLED_APPS = [
+    'django_crontab',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'thanks.apps.ThanksConfig',
+    'thanks.apps.ThanksConfig', 
 ]
 
 MIDDLEWARE = [
@@ -116,6 +117,9 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
+CRONJOBS = [
+    ('* 0 */1 * *', 'thanks.cron.tokenClearExpired'),
+]
 
 # Internationalization
 # https://docs.djangoproject.com/en/2.2/topics/i18n/

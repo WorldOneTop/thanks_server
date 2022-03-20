@@ -83,3 +83,16 @@ class Signup(models.Model):
 class Reject(models.Model):
     userId = models.PositiveIntegerField() # 학번, fk아니라 별도 처리 필요
     reason = models.CharField(max_length=100)
+    
+class Message(models.Model):
+    token = models.CharField(primary_key=True, max_length=255)
+    userId = models.ForeignKey("User", on_delete=models.CASCADE,null=True)
+    registerDate = models.DateField(auto_now_add=True, auto_now=False)
+    recvChat = models.BooleanField(default=False)
+    recvNotice = models.BooleanField(default=False)
+    recvDaily = models.BooleanField(default=False)
+    
+class Notice(models.Model):
+    title = models.CharField(max_length=50)
+    content = models.TextField()
+    registerDate = models.DateField(auto_now_add=True, auto_now=False)

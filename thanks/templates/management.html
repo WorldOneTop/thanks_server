@@ -25,7 +25,7 @@
                         <a class="nav-link" aria-current="page" href="#">톺아보기</a>
                     </li>
                     <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle active" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                             신청
                         </a>
                         <ul class="dropdown-menu" aria-labelledby="navbarDropdown">
@@ -36,10 +36,11 @@
                         </ul>
                     </li>
                     <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        <a class="nav-link dropdown-toggle active" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                             관리
                         </a>
                         <ul class="dropdown-menu" aria-labelledby="navbarDropdown">
+                            <li><a class="dropdown-item" href="/management/?type=4">공지사항 관리</a></li>
                             <li><a class="dropdown-item" href="/management/?type=0">학생 관리</a></li>
                             <li><a class="dropdown-item" href="/management/?type=1">기수 관리</a></li>
                             <li><a class="dropdown-item" href="/management/?type=2">매니저 관리</a></li>
@@ -61,6 +62,9 @@
                 <h2 class="mt-5">관리 리스트</h2>
                 <br>
                 <ul class="nav nav-tabs">
+                    <li class="nav-item">
+                        <a class="nav-link {% if type == '4' %}active{% endif %}" aria-current="page" href="./?type=4">공지사항 관리</a>
+                    </li>
                     <li class="nav-item">
                         <a class="nav-link {% if type == '0' %}active{% endif %}" aria-current="page" href="./?type=0">학생 관리</a>
                     </li>
@@ -153,7 +157,7 @@
                 
                 <ol class="list-group list-group-numbered">
                     {% for obj in data %}
-                    <li class="list-group-item d-flex justify-content-between align-items-start">
+                    <ul class="list-group-item d-flex justify-content-between align-items-start">
                         <div class="ms-2 me-auto">
                             <div class="fw-bold">
                                 {{obj.id}}기 - {{obj.year}}년도 {{obj.semester}} ㅣ 멘토 {{obj.mentorCount}}&nbsp;  멘티 {{obj.menteeCount}}
@@ -183,7 +187,7 @@
                                          {% if obj.activated == "활동 종료" %} disabled{% endif %}>수정</button>
                             </form>
                         </div>
-                    </li>
+                    </ul>
                     {% endfor %}
                 </ol>
                 {% endif %}
@@ -231,6 +235,43 @@
                     </form>
                 </center>
                 {% endif %}
+                {% if type == '4' %}
+                
+                <center style="padding:30px;">
+                    <form action="appendNotice/" onsubmit="return submitNotice(this)" method = "post">{% csrf_token %}
+                        <b>공지사항 등록</b>
+                        <input name="title" type="text" placeholder="제목" maxlength="50" style="width:50%;display: block;margin:5px;">
+                        <textarea name="content"  placeholder="내용" style="width:50%;display: block;min-height:50px;margin:5px;"></textarea>
+                        <button name="button" type="submit" class="btn btn-primary" style="margin:5px;font-size:0.8em;">등록</button>
+                    </form>
+                </center>
+                <ol class="list-group list-group-numbered">
+                    {% for obj in data %}
+                    <a class="list-group-item d-flex justify-content-between align-items-start"
+                       onclick="openNotice(this)" value="0">
+                        <div class="ms-2 me-auto">
+                            <div class="fw-bold">
+                                {{obj.title}}
+                            </div>
+                            <span style="font-size: 0.9em;color: grey;">
+                                개시일 : {{obj.registerDate}}
+                            </span>
+                            <div style="display:none;">
+                            <div class="fw-bold" style="margin-bottom:5px;">
+                                <br>
+                                {{obj.title}}
+                            </div>
+                                {{obj.content | linebreaksbr}}
+                            </div>
+                        </div>
+                        <div class="col position-absolute top-50 end-0 translate-middle-y me-2" style="vertical-align: top;height: 100%;margin:10px;">
+                            <button type="button" class="btn btn-primary" 
+                                    onclick="location.href='./removeNotice?id={{obj.id}}'">삭제</button>
+                        </div>
+                    </a>
+                    {% endfor %}
+                </ol>
+                {% endif %}
             </div>
 
             <!-- Placeholder for desktop -->
@@ -265,6 +306,26 @@
                 return false;
             }
             return true;
+        }
+        function submitNotice(obj){
+            if(!(obj.title.value && obj.content.value)){
+                alert('데이터를 모두 입력해주세요.');
+                return false;
+            }
+            obj.button.disabled = true;
+            return true;
+        }
+        
+        function openNotice(obj){
+            obj.value = !obj.value;
+            
+            if(obj.value){
+                obj.style.backgroundColor = "#f3f3f3";
+                obj.children[0].children[2].style.display="block";
+            }else{
+                obj.style.backgroundColor = "#fff";
+                obj.children[0].children[2].style.display="none";
+            }
         }
         
         function openPopup(url){

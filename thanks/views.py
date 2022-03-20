@@ -1,6 +1,6 @@
 from django.shortcuts import render
 from django.http import HttpResponse
-from .models import User, Mentor, Mentee, Telegram, Document, Manager, Signup, Term, Reject, ChatRoom
+from .models import User, Mentor, Mentee, Telegram, Document, Manager, Signup, Term, Reject, ChatRoom, Message, Notice
 import json
 from django.core.exceptions import *
 from django.shortcuts import render
@@ -9,8 +9,10 @@ from django.db import transaction
 from django.db import IntegrityError
 from django.db.models import Count
 from django.views.decorators.csrf import csrf_exempt 
-
+from . import firebase
 import os
+from datetime import datetime
+
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MAX_MENTEE = 5
@@ -18,31 +20,65 @@ MAX_MENTEE = 5
 def index(request):
     return render(request, 'pre_register.html')
 
-"""        USER        """
-def createUser(request): # args : {userId: 8자리 숫자, pw, name }
+"""        FIREBASE    """
+def onNewToken(request): # args : token=""    // 굳이 할필요 없음(로그인에서 처리)
     try:
-        catchError = checkUser(**(request.GET.dict()))
-        if(catchError != "OK"):
-            return HttpResponse('{"status":"'+catchError+'"}')
-        
-        data = {'userId':request.GET['userId'], 'pw': request.GET['pw'], 'name':request.GET['name']}
-        
-        User.objects.create(**data)
+        Message.objects.create(pk=request.GET['token'],userId=None)
     except KeyError:
         return HttpResponse('{"status":"not enough data"}')
-    except IntegrityError:
-        return HttpResponse('{"status":"already exist user"}')
-    
     return HttpResponse('{"status":"OK"}')
 
-def userLogin(request): # args : {userId, pw}
-    # try:
-    #     user = User.objects.get(pk=request.GET['userId'])
-    #     if(user.pw != request.GET['pw']):
-    #         return HttpResponse('{"status":"Password does not matched"}')
+def settingMessage(request): # args : token:'', recvChat: 0 or 1, recvDaily: 0 or 1
+    try:
+        obj = Message.objects.get(pk=request.GET['token'])
+        obj.recvChat = request.GET['recvChat']
+        obj.recvDaily = request.GET['recvDaily']
+        obj.save()
+    except ValidationError:
+        return HttpResponse('{"status":"data format not recognized"}')
+    except KeyError:
+        return HttpResponse('{"status":"not enough data"}')
+    except Message.DoesNotExist:
+        return HttpResponse('{"status":"Message does not exist"}')
+    return HttpResponse('{"status":"OK"}')
+
+
+"""        USER        """
+# def createUser(request): # args : {userId: 8자리 숫자, pw, name }
+#     try:
+#         catchError = checkUser(**(request.GET.dict()))
+#         if(catchError != "OK"):
+#             return HttpResponse('{"status":"'+catchError+'"}')
         
-    # except User.DoesNotExist:
-    #     return HttpResponse('{"status":"User does not exist"}')
+#         data = {'userId':request.GET['userId'], 'pw': request.GET['pw'], 'name':request.GET['name']}
+        
+#         User.objects.create(**data)
+#     except KeyError:
+#         return HttpResponse('{"status":"not enough data"}')
+#     except IntegrityError:
+#         return HttpResponse('{"status":"already exist user"}')
+    
+#     return HttpResponse('{"status":"OK"}')
+
+def userLogin(request): # args : {userId, pw, token}
+    try:
+        user = User.objects.get(pk=request.GET['userId'])
+        
+        token = Message.objects.get(pk=request.GET['token'])
+        if(token.userId != user):
+            token.userId = user
+        token.registerDate = datetime.today()
+        token.save()
+    
+        # if(user.pw != request.GET['pw']):
+        #     return HttpResponse('{"status":"Password does not matched"}')
+    except KeyError:
+        return HttpResponse('{"status":"not enough data"}')    
+    except User.DoesNotExist:
+        return HttpResponse('{"status":"User does not exist"}')
+    except Message.DoesNotExist:
+        Message.objects.create(pk=request.GET['token'], userId=user)
+    
     
     return HttpResponse('{"status":"OK"}')
 
@@ -178,7 +214,28 @@ def deleteDocument(request): # args : docId
     return HttpResponse('{"status":"OK"}')
 
 
+"""        NOTICE           """
+def getNotice(request): # args : X , 성능 이슈 예상으로 최대 최근 100개항목만 가져옴
+    result = list(Notice.objects.all().order_by('-id').values()[:100])
+    for r in result:
+        r['registerDate'] = str(r['registerDate'])
+    result = json.dumps(result, ensure_ascii=False)
+    return HttpResponse('{"status":"OK","data":'+result+'}') # return : ['title':'','content':'','registerDate':'']
+
 """        CHANTTING        """
+def getChatList(request): # args: mentorId or menteeId
+    try:
+        if('mentorId' in request.GET):
+            result = list(Mentee.objects.filter(mentorId=request.GET['mentorId']).values('userId','userId__name'))
+        else:
+            result = Mentee.objects.get(menteeId=request.GET['menteeId']).values('mentorId')
+    except KeyError:
+        return HttpResponse('{"status":"not enough data"}')
+    except Menteee.DoesNotExist:
+        return HttpResponse('{"status":"Mentee does not exist"}')
+    result = json.dumps(result, ensure_ascii=False)
+    return HttpResponse('{"status":"OK","data":'+result+'}')
+    
 def writeChat(request): # args : senderId, receiverId, content, chatRoom(없어도 됨, 있으면 쿼리안함)
     try:
         catchError = checkChat(**(request.GET.dict()))
@@ -245,23 +302,21 @@ def readLastChat(request): # args: userId
                 | ChatRoom.objects.filter(userId2=request.GET['userId'])).values('id')
         
         for room in rooms:
-            result.append({'lastChat':Telegram.objects.filter(chatRoom=room['id']).values(
-                'content','senderId','date','chatRoom').last(),
-                           'count':Telegram.objects.filter(chatRoom=room['id'],read=False).count()
-            })
-            # result[-1]['lastChat']['date'] = result[-1]['lastChat']['date'].strftime("%Y.%m.%d %p %I:%M")
+            lastChat = Telegram.objects.filter(chatRoom=room['id']).values('content','senderId','senderId__name','date','chatRoom').last()
+            lastChat['date'] = lastChat['date'].strftime("%Y.%m.%d %p %I:%M")
+            count = 0 if lastChat['senderId'] == userId else Telegram.objects.filter(chatRoom=room['id'],read=False).count()
+            result.append({'lastChat':lastChat, 'count':count})
+            
         sortResult = sorted(result, key=lambda r: r['lastChat']['date'],reverse=True) # 최신 -> 옛날 순
-        for s in sortResult:
-            s['lastChat']['date'] = s['lastChat']['date'].strftime("%Y.%m.%d %p %I:%M")
             
     except KeyError:
         return HttpResponse('{"status":"not enough data"}')
 
     result = json.dumps(sortResult, ensure_ascii=False)
     return HttpResponse('{"status":"OK","data":'+result+'}')
-    # return : {data :[{'lastChat':{'content':'','senderId':'','date':'','chatRoom':''},'count':''}, ...]
-
+    # return : {data :[{'lastChat':{'content':'','senderId':'','senderId__name':'','date':'','chatRoom':''},'count':''}, ...]
     
+
 """        ADMIN PAGE       """
 def preRegisterUpload(request): # 파일 원형 : [["학번","학과","이름","전화번호","비밀번호"]]
     result = request.POST.dict()
@@ -290,6 +345,7 @@ def admin(request):
     result['managerLen'] = Manager.objects.all().count()
     result['termMax'] = Term.objects.all().count()
     result['studentLen'] = User.objects.all().count()
+    result['noticeLen'] = Notice.objects.all().count()
     
     
     with open(BASE_DIR+'/waitSignup.json', 'r') as f:
@@ -350,6 +406,8 @@ def management(request):
         result['data'] = list(Manager.objects.all().values('adminId'))
     elif(result['type'] == '3'):
         pass
+    elif(result['type'] == '4'):
+        result['data'] = list(Notice.objects.all().order_by('-id').values())
     
     return render(request, 'management.html', result)
 
@@ -429,6 +487,18 @@ def adminSearch(request):
     return render(request, 'search.html',result)
 
 """        ADMIN FORM ACTION    """
+
+def appendNotice(request):
+    data = request.POST.dict()
+    data.pop('csrfmiddlewaretoken')
+    Notice.objects.create(**data)
+    firebase.sendNotice(data['title'],data['content'], str(date['registerDate']))
+    return HttpResponse("<script>alert('등록 및 발송되었습니다.');location.href = document.referrer;</script>")
+
+def removeNotice(request):
+    Notice.objects.filter(pk=request.GET['id']).delete()
+    return HttpResponse("<script>alert('삭제되었습니다.');location.href = document.referrer;</script>")
+
 def appendTerm(request):
     data = request.POST.dict()
     data.pop('csrfmiddlewaretoken')
@@ -612,7 +682,7 @@ def getUserData():
     return q0 #+ q1 + q2
 
 def getTermDate():
-    result = Term.objects.all().values()
+    result = Term.objects.all().order_by('-id').values()
     for obj in result:
         obj['mentorCount'] = Mentor.objects.filter(term = obj['id']).count()
         obj['menteeCount'] = Mentee.objects.filter(term = obj['id']).count()
@@ -704,10 +774,3 @@ def checkMen(**kwargs):
     return "OK"
    
     
-"""
-자동승인? 
-매칭된 멘티 확인
-매칭된 멘토 매칭 여부 확인, 매칭된 멘티 확인
-멘토멘티 승인
-멘토멘티 매칭
-"""

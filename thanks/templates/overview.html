@@ -44,6 +44,7 @@
                             관리
                         </a>
                         <ul class="dropdown-menu" aria-labelledby="navbarDropdown">
+                            <li><a class="dropdown-item" href="/management/?type=4">공지사항 관리</a></li>
                             <li><a class="dropdown-item" href="/management/?type=0">학생 관리</a></li>
                             <li><a class="dropdown-item" href="/management/?type=1">기수 관리</a></li>
                             <li><a class="dropdown-item" href="/management/?type=2">매니저 관리</a></li>
@@ -125,6 +126,12 @@
                 <h2 style="margin-top: 48px;">관리</h2>
                 <br>
                 <ol class="list-group list-group-numbered">
+                    <a class="list-group-item d-flex justify-content-between align-items-start" href="/management?type=4">
+                        <div class="ms-2 me-auto">
+                            <div class="fw-bold">공지사항 관리</div>
+                            현재 {{noticeLen}}개의 공지사항이 등록되었습니다.
+                        </div>
+                    </a>
                     <a class="list-group-item d-flex justify-content-between align-items-start" href="/management?type=0">
                         <div class="ms-2 me-auto">
                             <div class="fw-bold">학생 관리</div>

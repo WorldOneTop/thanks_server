@@ -489,10 +489,9 @@ def adminSearch(request):
 """        ADMIN FORM ACTION    """
 
 def appendNotice(request):
-    data = request.POST.dict()
-    data.pop('csrfmiddlewaretoken')
-    Notice.objects.create(**data)
-    firebase.sendNotice(data['title'],data['content'], str(date['registerDate']))
+    data = {'title':request.POST['title'],'content':request.POST['content']}
+    notice = Notice.objects.create(**data)
+    firebase.sendNotice(data['title'],data['content'], str(notice.registerDate))
     return HttpResponse("<script>alert('등록 및 발송되었습니다.');location.href = document.referrer;</script>")
 
 def removeNotice(request):

@@ -12,6 +12,7 @@ from django.views.decorators.csrf import csrf_exempt
 from . import firebase
 import os
 from datetime import datetime
+from django.db.models import Count
 
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -125,7 +126,7 @@ def createSignup(request): # args : userId, term(기수), userType(1:멘토,0:�
             return HttpResponse('{"status":"user is not activated"}')
         if(user.status != 1):
             return HttpResponse('{"status":"user is already have type"}')
-        if(not Mentee.objects.filter(userId=request.GET['userId'])):
+        if(request.GET['userType'] == 1 and not Mentee.objects.filter(userId=request.GET['userId'])):
             return HttpResponse('{"status":"user have never been mentee"}')
         
         term = Term.objects.get(pk=request.GET['term'])
@@ -213,6 +214,27 @@ def deleteDocument(request): # args : docId
         return HttpResponse('{"status":"document does not exist"}')
     return HttpResponse('{"status":"OK"}')
 
+def getMenteesDoc(request): # args : userId, date:yyyy-mm-dd
+    try:
+        mentorId = Mentor.objects.filter(term__activated=True, userId=request.GET['userId']).order_by("term__id").values("mentorId").last()
+        if(mentorId==None):
+            return HttpResponse('{"status":"mentor does not exist"}')
+        
+        result = list(Mentee.objects.filter(mentorId=mentorId['mentorId']).values("userId","userId__name"))
+        
+        for obj in result:
+            print(Document.objects.filter(registerDate=request.GET['date'], userId=obj['userId'],docType=0).count())
+            obj['thanks'] = Document.objects.filter(registerDate=request.GET['date'], userId=obj['userId'],docType=0).count()
+            obj['kind'] =  Document.objects.filter(registerDate=request.GET['date'], userId=obj['userId'],docType=1).count()
+            obj['save'] =  Document.objects.filter(registerDate=request.GET['date'], userId=obj['userId'],docType=2).count()
+            obj['book'] =  Document.objects.filter(registerDate=request.GET['date'], userId=obj['userId'],docType=3).count()
+
+    except KeyError:
+        return HttpResponse('{"status":"not enough data"}')
+    except Term.DoesNotExist:
+        return HttpResponse('{"status":"term does not exist"}')
+    result = json.dumps(result, ensure_ascii=False)
+    return HttpResponse('{"status":"OK","data":'+result+'}') # return {status, data : [{"userId":0,"userId__name":"","thanks":0,"kind":0, "save":0, "book":0,}, ...]}
 
 """        NOTICE           """
 def getNotice(request): # args : X , 성능 이슈 예상으로 최대 최근 100개항목만 가져옴

@@ -16,6 +16,7 @@ urlpatterns = [
     path('createDoc/', views.createDoc),
     path('updateDocument/', views.updateDocument),
     path('deleteDocument/', views.deleteDocument),
+    path('getMenteesDoc/', views.getMenteesDoc),
     path('selectDocument/', views.selectDocument),
     path('getNotice/', views.getNotice),
     path('getChatList/', views.getChatList),

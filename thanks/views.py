@@ -157,13 +157,13 @@ def createSignup(request): # args : userId, term(기수), userType(1:멘토,0:�
 # type 별로 통합적으로 생성  1: 감사 2: 선행, 3: 독후감, 4: 절약, 5: 공모전
 
 @csrf_exempt
-def createDoc(request): # args : userId, docType, content, image?
+def createDoc(request): # args : userId, docType, content(\n때매 POST방식으로), image?  
     try:
         catchError = checkDocument(**(request.GET.dict()))
         if(catchError != "OK"):
             return HttpResponse('{"status":"'+catchError+'"}')
         
-        data = {'userId':User.objects.get(pk=request.GET['userId']), 'docType': request.GET['docType'], 'content':request.GET['content']}
+        data = {'userId':User.objects.get(pk=request.GET['userId']), 'docType': request.GET['docType'], 'content':request.POST['content']}
         
         if(data['docType'] == "2"):
             if(not 'image' in request.FILES): 
@@ -220,10 +220,9 @@ def getMenteesDoc(request): # args : userId, date:yyyy-mm-dd
         if(mentorId==None):
             return HttpResponse('{"status":"mentor does not exist"}')
         
-        result = list(Mentee.objects.filter(mentorId=mentorId['mentorId']).values("userId","userId__name"))
+        result = list(Mentee.objects.filter(mentorId=mentorId['mentorId']).values("userId","userId__name","term"))
         
         for obj in result:
-            print(Document.objects.filter(registerDate=request.GET['date'], userId=obj['userId'],docType=0).count())
             obj['thanks'] = Document.objects.filter(registerDate=request.GET['date'], userId=obj['userId'],docType=0).count()
             obj['kind'] =  Document.objects.filter(registerDate=request.GET['date'], userId=obj['userId'],docType=1).count()
             obj['save'] =  Document.objects.filter(registerDate=request.GET['date'], userId=obj['userId'],docType=2).count()
@@ -234,7 +233,7 @@ def getMenteesDoc(request): # args : userId, date:yyyy-mm-dd
     except Term.DoesNotExist:
         return HttpResponse('{"status":"term does not exist"}')
     result = json.dumps(result, ensure_ascii=False)
-    return HttpResponse('{"status":"OK","data":'+result+'}') # return {status, data : [{"userId":0,"userId__name":"","thanks":0,"kind":0, "save":0, "book":0,}, ...]}
+    return HttpResponse('{"status":"OK","data":'+result+'}') # return {status, data : [{"userId":0,"userId__name":"","term":0,"thanks":0,"kind":0, "save":0, "book":0,}, ...]}
 
 """        NOTICE           """
 def getNotice(request): # args : X , 성능 이슈 예상으로 최대 최근 100개항목만 가져옴

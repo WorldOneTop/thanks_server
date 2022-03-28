@@ -4,7 +4,6 @@ from datetime import datetime
 class User(models.Model):
     userId = models.PositiveIntegerField(primary_key=True) # 학번
     name = models.CharField(max_length=5)
-    pw = models.CharField(max_length=20)
     registerDate = models.DateField(auto_now_add=True, auto_now=False)
     status = models.PositiveSmallIntegerField(default=0) # 0:가입X, 1:가입만, 2:멘토 신청대기, 3:멘티 신청대기, 4: 멘토, 5:멘티
     

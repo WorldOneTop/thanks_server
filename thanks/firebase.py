@@ -10,8 +10,8 @@ def sendNotice(title, content, date):
             'date' : date
         },
         notification=messaging.Notification(
-             title=title,
-             body=content,
+             title="한림 감사운동",
+             body="공지사항이 등록되었습니다.",
          ),
         topic='notice',
     )

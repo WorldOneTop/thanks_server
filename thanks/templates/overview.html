@@ -33,7 +33,6 @@
                             신청
                         </a>
                         <ul class="dropdown-menu" aria-labelledby="navbarDropdown">
-                            <li><a class="dropdown-item" href="/signupList?type=0">가입 신청</a></li>
                             <li><a class="dropdown-item" href="/signupList?type=1">멘토 신청</a></li>
                             <li><a class="dropdown-item" href="/signupList?type=2">멘티 신청</a></li>
                             <li><a class="dropdown-item" href="/signupList?type=3">멘토&amp;멘티 매칭</a></li>
@@ -67,16 +66,6 @@
                 <h2 style="margin-top: 48px;">새 신청</h2>
                 <br>
                 <ol class="list-group list-group-numbered">
-                    <a class="list-group-item d-flex justify-content-between align-items-start"
-                       href="/signupList?type=0">
-                        <div class="ms-2 me-auto">
-                            <div class="fw-bold">가입 신청</div>
-                            새로운 가입 신청이 {{userCount}}건 있습니다.
-                        </div>
-                        {% if userCount %}
-                        <span class="badge bg-primary rounded-pill">{{userCount}}</span>
-                        {% endif %}
-                    </a>
                     <a class="list-group-item d-flex justify-content-between align-items-start"
                        href="/signupList?type=1">
                         <div class="ms-2 me-auto">

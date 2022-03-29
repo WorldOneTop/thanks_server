@@ -22,7 +22,7 @@ class Mentee(models.Model):
     activated = models.BooleanField(default=False,null=True)
     
 class Telegram(models.Model):
-    telegramId = models.AutoField(primary_key=True)
+    telegramId = models.BigAutoField(primary_key=True)
     senderId = models.ForeignKey("User", on_delete=models.CASCADE, related_name="senderId")
     receiverId = models.ForeignKey("User", on_delete=models.CASCADE, related_name="receiverId")
     date = models.DateTimeField(auto_now_add=True, auto_now=False)

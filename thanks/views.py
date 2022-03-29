@@ -70,7 +70,7 @@ def userLogin(request): # args : {userId, pw, token}
             token.userId = user
         token.registerDate = datetime.today()
         token.save()
-    
+        
         # if(user.pw != request.GET['pw']):
         #     return HttpResponse('{"status":"Password does not matched"}')
     except KeyError:
@@ -80,8 +80,7 @@ def userLogin(request): # args : {userId, pw, token}
     except Message.DoesNotExist:
         Message.objects.create(pk=request.GET['token'], userId=user)
     
-    
-    return HttpResponse('{"status":"OK"}')
+    return HttpResponse('{"status":"OK","userStatus":'+str(user.status)+'}') # return : userStatus:0
 
 def accountInfo(request): # args : userId
     try:
@@ -216,7 +215,7 @@ def deleteDocument(request): # args : docId
 
 def getMenteesDoc(request): # args : userId, date:yyyy-mm-dd
     try:
-        mentorId = Mentor.objects.filter(term__activated=True, userId=request.GET['userId']).order_by("term__id").values("mentorId").last()
+        mentorId = Mentor.objects.filter(userId=request.GET['userId']).exclude(term__activated=None).order_by("term__id").values("mentorId").last()
         if(mentorId==None):
             return HttpResponse('{"status":"mentor does not exist"}')
         
@@ -257,7 +256,7 @@ def getChatList(request): # args: mentorId or menteeId
     result = json.dumps(result, ensure_ascii=False)
     return HttpResponse('{"status":"OK","data":'+result+'}')
     
-def writeChat(request): # args : senderId, receiverId, content, chatRoom(없어도 됨, 있으면 쿼리안함)
+def writeChat(request): # args : senderId, receiverId, content, chatRoom(새로 방 만들땐 없이)
     try:
         catchError = checkChat(**(request.GET.dict()))
         if(catchError != "OK"):
@@ -276,8 +275,7 @@ def writeChat(request): # args : senderId, receiverId, content, chatRoom(없어�
             elif(len(query2) != 0):
                 data['chatRoom'] = ChatRoom.objects.get(pk=query2[0]['id'])
             else:
-                room = ChatRoom.objects.create(**{'userId1':data['senderId'],'userId2':data['receiverId']})
-                data['chatRoom'] = room
+                data['chatRoom'] = ChatRoom.objects.create(**{'userId1':data['senderId'],'userId2':data['receiverId']})
         else:
             data['chatRoom'] = ChatRoom.objects.get(pk=request.GET['chatRoom'])
             
@@ -294,14 +292,16 @@ def writeChat(request): # args : senderId, receiverId, content, chatRoom(없어�
 # 후자는 폰에 데이터 저장 따로해서 처리 복잡하지만 서버부하줄이고 속도향상 기대
 # 전자는 서버부하 가능성있지만 앱단에서 처리 쉬움
 
-def readChat(request): # args : userId, chatRoom
+# 안읽은 부분부터만 보내니까 이전 데이터는 저장필요
+# 이게 여러 상황(채팅방을 나갔었던, 앱을 삭제했던 상태에서 채팅이 들어왔을때)
+def readChat(request): # args : userId, chatRoom, lastId
     try:
         if(not checkId(request.GET['userId'])):
             return HttpResponse('{"status":"user id is not matched format"}')
         
         Telegram.objects.filter(chatRoom=request.GET['chatRoom'], receiverId=request.GET['userId'],read=False).update(read=True)
-        result = list(Telegram.objects.filter(chatRoom=request.GET['chatRoom']).values('receiverId','senderId','date','content','read'
-                                                                                      ).order_by('date')) # 옛날 -> 최신 순
+        result = list(Telegram.objects.filter(chatRoom=request.GET['chatRoom'], telegramId__gt=request.GET['lastId']).values('receiverId','senderId','date','content','read'
+                                                                                      ).order_by('-date')) # 최신 -> 옛날 순
         
         for r in result:
             r['date'] = r['date'].strftime("%Y.%m.%d %p %I:%M")
@@ -311,7 +311,7 @@ def readChat(request): # args : userId, chatRoom
     except ChatRoom.DoesNotExist:
         return HttpResponse('{"status":"ChatRoom does not exist"}')
     result = json.dumps(result, ensure_ascii=False)
-    return HttpResponse('{"status":"OK","data":'+result+'}')
+    return HttpResponse('{"status":"OK","data":'+result+'}') # return : 'receiverId':0,'senderId':0,'date':"%Y.%m.%d %p %I:%M",'content':"",'read':0
 
 # 마지막 대화와 안읽은 개수 확인
 def readLastChat(request): # args: userId

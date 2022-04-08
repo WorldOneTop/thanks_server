@@ -20,20 +20,6 @@ class Mentee(models.Model):
     term = models.ForeignKey("Term", on_delete=models.CASCADE)
     mentorId =  models.ForeignKey("Mentor", on_delete=models.CASCADE, null=True)
     activated = models.BooleanField(default=False,null=True)
-    
-class Telegram(models.Model):
-    telegramId = models.BigAutoField(primary_key=True)
-    senderId = models.ForeignKey("User", on_delete=models.CASCADE, related_name="senderId")
-    receiverId = models.ForeignKey("User", on_delete=models.CASCADE, related_name="receiverId")
-    date = models.DateTimeField(auto_now_add=True, auto_now=False)
-    read = models.BooleanField(default=False)
-    content = models.CharField(max_length=100)
-    chatRoom = models.ForeignKey("ChatRoom", on_delete=models.CASCADE)
-
-class ChatRoom(models.Model):
-    userId1 = models.ForeignKey("User", on_delete=models.CASCADE, related_name="user1")
-    userId2 = models.ForeignKey("User", on_delete=models.CASCADE, related_name="user2")
-
 
 class Document(models.Model):
     docId = models.BigAutoField(primary_key=True)
@@ -87,8 +73,8 @@ class Message(models.Model):
     token = models.CharField(primary_key=True, max_length=255)
     userId = models.ForeignKey("User", on_delete=models.CASCADE,null=True)
     registerDate = models.DateField(auto_now_add=True, auto_now=False)
-    recvChat = models.BooleanField(default=False)
-    recvNotice = models.BooleanField(default=False)
+    recvChat = models.BooleanField(default=False) # 이거 두개는
+    recvNotice = models.BooleanField(default=False)# 없애도 될듯
     recvDaily = models.BooleanField(default=False)
     
 class Notice(models.Model):

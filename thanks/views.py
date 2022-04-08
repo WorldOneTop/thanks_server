@@ -1,6 +1,6 @@
 from django.shortcuts import render
 from django.http import HttpResponse
-from .models import User, Mentor, Mentee, Telegram, Document, Manager, Signup, Term, Reject, ChatRoom, Message, Notice
+from .models import User, Mentor, Mentee, Document, Manager, Signup, Term, Reject, Message, Notice
 import json
 from django.core.exceptions import *
 from django.shortcuts import render
@@ -243,99 +243,128 @@ def getNotice(request): # args : X , 성능 이슈 예상으로 최대 최근 10
     return HttpResponse('{"status":"OK","data":'+result+'}') # return : ['title':'','content':'','registerDate':'']
 
 """        CHANTTING        """
-def getChatList(request): # args: mentorId or menteeId
+
+def readChat(request): # args: senderId, receiverId
     try:
-        if('mentorId' in request.GET):
-            result = list(Mentee.objects.filter(mentorId=request.GET['mentorId']).values('userId','userId__name'))
-        else:
-            result = Mentee.objects.get(menteeId=request.GET['menteeId']).values('mentorId')
+        tokens = list(Message.objects.filter(userId=request.GET['receiverId']).values('token'))
+        if(len(tokens)==0):
+            return HttpResponse('{"status":"received user does not exist"}')
+            
+        firebase.readChat(tokens,request.GET['receiverId'], request.GET['senderId'])
     except KeyError:
         return HttpResponse('{"status":"not enough data"}')
-    except Menteee.DoesNotExist:
-        return HttpResponse('{"status":"Mentee does not exist"}')
-    result = json.dumps(result, ensure_ascii=False)
-    return HttpResponse('{"status":"OK","data":'+result+'}')
+    return HttpResponse('{"status":"OK"}')
     
-def writeChat(request): # args : senderId, receiverId, content, chatRoom(새로 방 만들땐 없이)
+@csrf_exempt    
+def sendChat(request): # args: senderId, receiverId, content
     try:
-        catchError = checkChat(**(request.GET.dict()))
-        if(catchError != "OK"):
-            return HttpResponse('{"status":"'+catchError+'"}')
+        userName = User.objects.get(pk=request.GET['senderId']).name
+        users = list(Message.objects.filter(userId=request.GET['receiverId']).values('token'))
+        date = datetime.now().strftime("%Y.%m.%d %H:%M")
+        if(len(users)==0):
+            return HttpResponse('{"status":"received user does not exist","date":"'+date+'"}')
         
-        data = {'content':request.GET['content']}
-        data['senderId'] = User.objects.get(pk=request.GET['senderId'])
-        data['receiverId'] = User.objects.get(pk=request.GET['receiverId'])
-        
-        if('chatRoom' not in request.GET):
-            query1 = ChatRoom.objects.filter(userId1=request.GET['senderId'],userId2=request.GET['receiverId']).values('id')
-            query2 = ChatRoom.objects.filter(userId2=request.GET['senderId'],userId1=request.GET['receiverId']).values('id')
-            
-            if(len(query1) != 0):
-                data['chatRoom'] = ChatRoom.objects.get(pk=query1[0]['id'])
-            elif(len(query2) != 0):
-                data['chatRoom'] = ChatRoom.objects.get(pk=query2[0]['id'])
-            else:
-                data['chatRoom'] = ChatRoom.objects.create(**{'userId1':data['senderId'],'userId2':data['receiverId']})
-        else:
-            data['chatRoom'] = ChatRoom.objects.get(pk=request.GET['chatRoom'])
-            
-        Telegram.objects.create(**data)
+        firebase.sendChat(users,request.GET['senderId'],request.POST['content'],userName,date)
     except KeyError:
         return HttpResponse('{"status":"not enough data"}')
     except User.DoesNotExist:
-        return HttpResponse('{"status":"user does not exist"}')
-    except ChatRoom.DoesNotExist:
-        return HttpResponse('{"status":"ChatRoom does not exist"}')
-    return HttpResponse('{"status":"OK","roomId":"'+str(data['chatRoom'].id)+'"}')
-
-# 채팅방 들어갔을 때 그동안 기록 전부 담기? or 못받은 데이터만 하기? 
-# 후자는 폰에 데이터 저장 따로해서 처리 복잡하지만 서버부하줄이고 속도향상 기대
-# 전자는 서버부하 가능성있지만 앱단에서 처리 쉬움
-
-# 안읽은 부분부터만 보내니까 이전 데이터는 저장필요
-# 이게 여러 상황(채팅방을 나갔었던, 앱을 삭제했던 상태에서 채팅이 들어왔을때)
-def readChat(request): # args : userId, chatRoom, lastId
-    try:
-        if(not checkId(request.GET['userId'])):
-            return HttpResponse('{"status":"user id is not matched format"}')
+        return HttpResponse('{"status":"User does not exist"}')
+    return HttpResponse('{"status":"OK","date":"'+date+'"}')
+    
         
-        Telegram.objects.filter(chatRoom=request.GET['chatRoom'], receiverId=request.GET['userId'],read=False).update(read=True)
-        result = list(Telegram.objects.filter(chatRoom=request.GET['chatRoom'], telegramId__gt=request.GET['lastId']).values('receiverId','senderId','date','content','read'
-                                                                                      ).order_by('-date')) # 최신 -> 옛날 순
+# def getChatList(request): # args: mentorId or menteeId
+#     try:
+#         if('mentorId' in request.GET):
+#             result = list(Mentee.objects.filter(mentorId=request.GET['mentorId']).values('userId','userId__name'))
+#         else:
+#             result = Mentee.objects.get(menteeId=request.GET['menteeId']).values('mentorId')
+#     except KeyError:
+#         return HttpResponse('{"status":"not enough data"}')
+#     except Menteee.DoesNotExist:
+#         return HttpResponse('{"status":"Mentee does not exist"}')
+#     result = json.dumps(result, ensure_ascii=False)
+#     return HttpResponse('{"status":"OK","data":'+result+'}')
+    
+# def writeChat(request): # args : senderId, receiverId, content, chatRoom(새로 방 만들땐 없이)
+#     try:
+#         catchError = checkChat(**(request.GET.dict()))
+#         if(catchError != "OK"):
+#             return HttpResponse('{"status":"'+catchError+'"}')
         
-        for r in result:
-            r['date'] = r['date'].strftime("%Y.%m.%d %p %I:%M")
+#         data = {'content':request.GET['content']}
+#         data['senderId'] = User.objects.get(pk=request.GET['senderId'])
+#         data['receiverId'] = User.objects.get(pk=request.GET['receiverId'])
         
-    except KeyError:
-        return HttpResponse('{"status":"not enough data"}')
-    except ChatRoom.DoesNotExist:
-        return HttpResponse('{"status":"ChatRoom does not exist"}')
-    result = json.dumps(result, ensure_ascii=False)
-    return HttpResponse('{"status":"OK","data":'+result+'}') # return : 'receiverId':0,'senderId':0,'date':"%Y.%m.%d %p %I:%M",'content':"",'read':0
-
-# 마지막 대화와 안읽은 개수 확인
-def readLastChat(request): # args: userId
-    try:
-        if(not checkId(request.GET['userId'])):
-            return HttpResponse('{"status":"user id is not matched format"}')
-        result = []
-        rooms = (ChatRoom.objects.filter(userId1=request.GET['userId'])
-                | ChatRoom.objects.filter(userId2=request.GET['userId'])).values('id')
-        
-        for room in rooms:
-            lastChat = Telegram.objects.filter(chatRoom=room['id']).values('content','senderId','senderId__name','date','chatRoom').last()
-            lastChat['date'] = lastChat['date'].strftime("%Y.%m.%d %p %I:%M")
-            count = 0 if lastChat['senderId'] == userId else Telegram.objects.filter(chatRoom=room['id'],read=False).count()
-            result.append({'lastChat':lastChat, 'count':count})
+#         if('chatRoom' not in request.GET):
+#             query1 = ChatRoom.objects.filter(userId1=request.GET['senderId'],userId2=request.GET['receiverId']).values('id')
+#             query2 = ChatRoom.objects.filter(userId2=request.GET['senderId'],userId1=request.GET['receiverId']).values('id')
             
-        sortResult = sorted(result, key=lambda r: r['lastChat']['date'],reverse=True) # 최신 -> 옛날 순
+#             if(len(query1) != 0):
+#                 data['chatRoom'] = ChatRoom.objects.get(pk=query1[0]['id'])
+#             elif(len(query2) != 0):
+#                 data['chatRoom'] = ChatRoom.objects.get(pk=query2[0]['id'])
+#             else:
+#                 data['chatRoom'] = ChatRoom.objects.create(**{'userId1':data['senderId'],'userId2':data['receiverId']})
+#         else:
+#             data['chatRoom'] = ChatRoom.objects.get(pk=request.GET['chatRoom'])
             
-    except KeyError:
-        return HttpResponse('{"status":"not enough data"}')
+#         Telegram.objects.create(**data)
+#     except KeyError:
+#         return HttpResponse('{"status":"not enough data"}')
+#     except User.DoesNotExist:
+#         return HttpResponse('{"status":"user does not exist"}')
+#     except ChatRoom.DoesNotExist:
+#         return HttpResponse('{"status":"ChatRoom does not exist"}')
+#     return HttpResponse('{"status":"OK","roomId":"'+str(data['chatRoom'].id)+'"}')
 
-    result = json.dumps(sortResult, ensure_ascii=False)
-    return HttpResponse('{"status":"OK","data":'+result+'}')
-    # return : {data :[{'lastChat':{'content':'','senderId':'','senderId__name':'','date':'','chatRoom':''},'count':''}, ...]
+# # 채팅방 들어갔을 때 그동안 기록 전부 담기? or 못받은 데이터만 하기? 
+# # 후자는 폰에 데이터 저장 따로해서 처리 복잡하지만 서버부하줄이고 속도향상 기대
+# # 전자는 서버부하 가능성있지만 앱단에서 처리 쉬움
+
+# # 안읽은 부분부터만 보내니까 이전 데이터는 저장필요
+# # 이게 여러 상황(채팅방을 나갔었던, 앱을 삭제했던 상태에서 채팅이 들어왔을때)
+# def readChat(request): # args : userId, chatRoom, lastId
+#     try:
+#         if(not checkId(request.GET['userId'])):
+#             return HttpResponse('{"status":"user id is not matched format"}')
+        
+#         Telegram.objects.filter(chatRoom=request.GET['chatRoom'], receiverId=request.GET['userId'],read=False).update(read=True)
+#         result = list(Telegram.objects.filter(chatRoom=request.GET['chatRoom'], telegramId__gt=request.GET['lastId']).values('receiverId','senderId','date','content','read'
+#                                                                                       ).order_by('-date')) # 최신 -> 옛날 순
+        
+#         for r in result:
+#             r['date'] = r['date'].strftime("%Y.%m.%d %p %I:%M")
+        
+#     except KeyError:
+#         return HttpResponse('{"status":"not enough data"}')
+#     except ChatRoom.DoesNotExist:
+#         return HttpResponse('{"status":"ChatRoom does not exist"}')
+#     result = json.dumps(result, ensure_ascii=False)
+#     return HttpResponse('{"status":"OK","data":'+result+'}') # return : 'receiverId':0,'senderId':0,'date':"%Y.%m.%d %p %I:%M",'content':"",'read':0
+
+# # 마지막 대화와 안읽은 개수 확인
+# def readLastChat(request): # args: userId
+#     try:
+#         if(not checkId(request.GET['userId'])):
+#             return HttpResponse('{"status":"user id is not matched format"}')
+#         result = []
+#         rooms = (ChatRoom.objects.filter(userId1=request.GET['userId'])
+#                 | ChatRoom.objects.filter(userId2=request.GET['userId'])).values('id')
+        
+#         for room in rooms:
+#             lastChat = Telegram.objects.filter(chatRoom=room['id']).values('content','senderId','senderId__name','receiverId','receiverId__name','date','chatRoom').last()
+#             lastChat['date'] = lastChat['date'].strftime("%Y.%m.%d %p %I:%M")
+#             count = 0 if lastChat['senderId'] == userId else Telegram.objects.filter(chatRoom=room['id'],read=False).count()
+#             result.append({'lastChat':lastChat, 'count':count})
+            
+#         sortResult = sorted(result, key=lambda r: r['lastChat']['date'],reverse=True) # 최신 -> 옛날 순
+            
+#     except KeyError:
+#         return HttpResponse('{"status":"not enough data"}')
+
+#     result = json.dumps(sortResult, ensure_ascii=False)
+#     return HttpResponse('{"status":"OK","data":'+result+'}')
+#     # return : {data :[{'lastChat':{'content':'','senderId':'','senderId__name':'','receiverId':'','receiverId__name':'','date':'','chatRoom':''},'count':''}, ...]
     
 
 """        ADMIN PAGE       """

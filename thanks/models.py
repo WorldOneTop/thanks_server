@@ -6,6 +6,7 @@ class User(models.Model):
     name = models.CharField(max_length=5)
     registerDate = models.DateField(auto_now_add=True, auto_now=False)
     status = models.PositiveSmallIntegerField(default=0) # 0:가입X, 1:가입만, 2:멘토 신청대기, 3:멘티 신청대기, 4: 멘토, 5:멘티
+    CSRF = models.CharField(max_length=64,default="")
     
 class Mentor(models.Model):
     mentorId = models.AutoField(primary_key=True)
@@ -73,9 +74,6 @@ class Message(models.Model):
     token = models.CharField(primary_key=True, max_length=255)
     userId = models.ForeignKey("User", on_delete=models.CASCADE,null=True)
     registerDate = models.DateField(auto_now_add=True, auto_now=False)
-    recvChat = models.BooleanField(default=False) # 이거 두개는
-    recvNotice = models.BooleanField(default=False)# 없애도 될듯
-    recvDaily = models.BooleanField(default=False)
     
 class Notice(models.Model):
     title = models.CharField(max_length=50)

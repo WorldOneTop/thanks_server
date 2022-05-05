@@ -8,7 +8,6 @@ from django.conf import settings
 urlpatterns = [
     path('', views.index),
     path('onNewToken/', views.onNewToken),
-    path('settingMessage/', views.settingMessage),
     # path('createUser/', views.createUser),
     path('userLogin/', views.userLogin),
     path('accountInfo/', views.accountInfo),
@@ -22,10 +21,6 @@ urlpatterns = [
     path('getNotice/', views.getNotice),
     path('readChat/', views.readChat),
     path('sendChat/', views.sendChat),
-    # path('getChatList/', views.getChatList),
-    # path('writeChat/', views.writeChat),
-    # path('readChat/', views.readChat),
-    # path('readLastChat/', views.readLastChat),
     
     # ADMIN
     path('preRegisterUpload/', views.preRegisterUpload),

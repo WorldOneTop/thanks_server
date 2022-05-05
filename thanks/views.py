@@ -13,6 +13,8 @@ from . import firebase
 import os
 from datetime import datetime
 from django.db.models import Count
+import random, string, hashlib # 토큰발행
+
 
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -27,20 +29,6 @@ def onNewToken(request): # args : token=""    // 굳이 할필요 없음(로그�
         Message.objects.create(pk=request.GET['token'],userId=None)
     except KeyError:
         return HttpResponse('{"status":"not enough data"}')
-    return HttpResponse('{"status":"OK"}')
-
-def settingMessage(request): # args : token:'', recvChat: 0 or 1, recvDaily: 0 or 1
-    try:
-        obj = Message.objects.get(pk=request.GET['token'])
-        obj.recvChat = request.GET['recvChat']
-        obj.recvDaily = request.GET['recvDaily']
-        obj.save()
-    except ValidationError:
-        return HttpResponse('{"status":"data format not recognized"}')
-    except KeyError:
-        return HttpResponse('{"status":"not enough data"}')
-    except Message.DoesNotExist:
-        return HttpResponse('{"status":"Message does not exist"}')
     return HttpResponse('{"status":"OK"}')
 
 
@@ -64,10 +52,14 @@ def settingMessage(request): # args : token:'', recvChat: 0 or 1, recvDaily: 0 o
 def userLogin(request): # args : {userId, pw, token}
     try:
         user = User.objects.get(pk=request.GET['userId'])
-        
         token = Message.objects.get(pk=request.GET['token'])
+        
         if(token.userId != user):
             token.userId = user
+        
+        user.CSRF = createCSRF()
+        user.save()
+        
         token.registerDate = datetime.today()
         token.save()
         
@@ -80,11 +72,11 @@ def userLogin(request): # args : {userId, pw, token}
     except Message.DoesNotExist:
         Message.objects.create(pk=request.GET['token'], userId=user)
     
-    return HttpResponse('{"status":"OK","userStatus":'+str(user.status)+'}') # return : userStatus:0
+    return HttpResponse('{"status":"OK","userStatus":'+str(user.status)+',"CSRF":"'+user.CSRF+'"}') # return : status:OK userStatus:0, CSRF:asdf
 
-def accountInfo(request): # args : userId
+def accountInfo(request): # args : userId, CSRF
     try:
-        user = User.objects.get(pk=request.GET['userId'])
+        user = User.objects.get(pk=request.GET['userId'],CSRF=request.GET['CSRF'])
         result = {"id":user.userId,"name":user.name,"registerDate":str(user.registerDate)}
         result['documents'] = list(Document.objects.filter(userId=user).values('docType').annotate(count=Count('docType')))
     except KeyError:
@@ -93,7 +85,7 @@ def accountInfo(request): # args : userId
         return HttpResponse('{"status":"user does not exist"}')
     
     result = json.dumps(result, ensure_ascii=False)
-    return HttpResponse('{"status":"OK","data":'+result+'}') # "data":"{"id": , "name": , "registerDate": , "documents": }
+    return HttpResponse('{"status":"OK","data":'+result+'}') # "data":"[{"id": , "name": , "registerDate": , "documents": }]
 
 """        Term       """
 def selectTerm(request): # args : activated(Boolean?(0, 1, False, True X))
@@ -113,16 +105,16 @@ def selectTerm(request): # args : activated(Boolean?(0, 1, False, True X))
     return HttpResponse('{"status":"OK","data":'+result+'}') # "data":[{"id": 0, "startDate": "", "endDate": "", "activated": null }]
     
 # 멘토 or 멘티 신청 
-def createSignup(request): # args : userId, term(기수), userType(1:멘토,0:멘티)
+def createSignup(request): # args : userId, term(기수), userType(1:멘토,0:멘티), CSRF
     try:
         catchError = checkMen(**(request.GET.dict()))
         if(catchError != "OK"):
             return HttpResponse('{"status":"'+catchError+'"}')
         
-        user = User.objects.get(pk=request.GET['userId'])
+        user = User.objects.get(pk=request.GET['userId'],CSRF=request.GET['CSRF'])
         
         if(user.status == 0):
-            return HttpResponse('{"status":"user is not activated"}')
+            return HttpResponse('{"status":"user is not activated"}')  # 여기 변경됨@@@@@@@@@@@@@@@@@ 처리 X
         if(user.status != 1):
             return HttpResponse('{"status":"user is already have type"}')
         if(request.GET['userType'] == 1 and not Mentee.objects.filter(userId=request.GET['userId'])):
@@ -156,18 +148,18 @@ def createSignup(request): # args : userId, term(기수), userType(1:멘토,0:�
 # type 별로 통합적으로 생성  1: 감사 2: 선행, 3: 독후감, 4: 절약, 5: 공모전
 
 @csrf_exempt
-def createDoc(request): # args : userId, docType, content(\n때매 POST방식으로), image?  
+def createDoc(request): # args : userId, docType, content(\n때매 POST방식으로), image?, CSRF  
     try:
         catchError = checkDocument(**(request.GET.dict()))
         if(catchError != "OK"):
             return HttpResponse('{"status":"'+catchError+'"}')
         
-        data = {'userId':User.objects.get(pk=request.GET['userId']), 'docType': request.GET['docType'], 'content':request.POST['content']}
+        data = {'userId':User.objects.get(pk=request.GET['userId'],CSRF=request.GET['CSRF']), 'docType': request.GET['docType'], 'content':request.POST['content']}
         
         if(data['docType'] == "2"):
-            if(not 'image' in request.FILES): 
-                return HttpResponse('{"status":"required fileUrl"}')
-            data['fileUrl'] = request.FILES['image']
+            if('image' in request.FILES): 
+                data['fileUrl'] = request.FILES['image']
+                # return HttpResponse('{"status":"required fileUrl"}') # 여기 변경됨@@@@@@@@@@@@@@@@@ 처리 X
             
         obj = Document.objects.create(**data)
         result = {"docId":obj.docId, "content":obj.content, "docType":int(obj.docType), "registerDate": obj.registerDate.strftime("%Y-%m-%d"), "fileUrl": obj.fileUrl if obj.fileUrl else ""}
@@ -179,8 +171,27 @@ def createDoc(request): # args : userId, docType, content(\n때매 POST방식으
     result = json.dumps(result, ensure_ascii=False)
     return HttpResponse('{"status":"OK","data":'+result+'}') # return {"status":"OK","data":{"docId": 0, "content": "", "docType": 0, "registerDate": "", "fileUrl": ""}}
 
-def updateDocument(request):
-    return HttpResponse("hello world")
+def updateDocument(request): # args : docId, content, image?
+    try:
+        doc = Document.objects.get(pk=request.GET['docId'])
+        
+        if(doc.registerDate != datetime.now().strftime("%Y-%m-%d")):
+            return HttpResponse('{"status":"not today"}')
+        
+        
+        if('image' in request.FILES): 
+            doc.fileUrl = request.FILES['image']
+            
+        doc.content = request.POST['content']
+        doc.save()
+        
+    except KeyError:
+        return HttpResponse('{"status":"not enough data"}')
+    except Document.DoesNotExist:
+        return HttpResponse('{"status":"document does not exist"}')
+    
+    result = json.dumps(result, ensure_ascii=False)
+    return HttpResponse('{"status":"OK"}')
 
 def selectDocument(request): # args : userId, date:yyyy-mm-dd
     try:
@@ -208,14 +219,19 @@ def selectDocument(request): # args : userId, date:yyyy-mm-dd
 
 def deleteDocument(request): # args : docId
     try:
-        Document.objects.get(pk=request.GET['docId']).delete()
+        doc = Document.objects.get(pk=request.GET['docId'])
+        if(doc.registerDate != datetime.now().strftime("%Y-%m-%d")):
+            return HttpResponse('{"status":"not today"}')
+        
+        doc.delete()
     except Document.DoesNotExist:
         return HttpResponse('{"status":"document does not exist"}')
     return HttpResponse('{"status":"OK"}')
 
-def getMenteesDoc(request): # args : userId, date:yyyy-mm-dd
+def getMenteesDoc(request): # args : userId, date:yyyy-mm-dd, CSRF
     try:
-        mentorId = Mentor.objects.filter(userId=request.GET['userId']).exclude(term__activated=None).order_by("term__id").values("mentorId").last()
+        userId = User.objects.get(pk=request.GET['userId'],CSRF=request.GET['CSRF']).id
+        mentorId = Mentor.objects.filter(userId=userId).exclude(term__activated=None).order_by("term__id").values("mentorId").last()
         if(mentorId==None):
             return HttpResponse('{"status":"mentor does not exist"}')
         
@@ -229,6 +245,8 @@ def getMenteesDoc(request): # args : userId, date:yyyy-mm-dd
 
     except KeyError:
         return HttpResponse('{"status":"not enough data"}')
+    except User.DoesNotExist:
+        return HttpResponse('{"status":"user does not exist"}')
     except Term.DoesNotExist:
         return HttpResponse('{"status":"term does not exist"}')
     result = json.dumps(result, ensure_ascii=False)
@@ -244,21 +262,24 @@ def getNotice(request): # args : X , 성능 이슈 예상으로 최대 최근 10
 
 """        CHANTTING        """
 
-def readChat(request): # args: senderId, receiverId
+def readChat(request): # args: senderId, receiverId, CSRF
     try:
+        userId = User.objects.get(pk=request.GET['senderId'],CSRF=request.GET['CSRF']).id
         tokens = list(Message.objects.filter(userId=request.GET['receiverId']).values('token'))
         if(len(tokens)==0):
             return HttpResponse('{"status":"received user does not exist"}')
             
-        firebase.readChat(tokens,request.GET['receiverId'], request.GET['senderId'])
+        firebase.readChat(tokens,userId)
     except KeyError:
         return HttpResponse('{"status":"not enough data"}')
+    except User.DoesNotExist:
+        return HttpResponse('{"status":"user does not exist"}')
     return HttpResponse('{"status":"OK"}')
     
 @csrf_exempt    
-def sendChat(request): # args: senderId, receiverId, content
+def sendChat(request): # args: senderId, receiverId, content, CSRF
     try:
-        userName = User.objects.get(pk=request.GET['senderId']).name
+        userName = User.objects.get(pk=request.GET['senderId'],CSRF=request.GET['CSRF']).name
         users = list(Message.objects.filter(userId=request.GET['receiverId']).values('token'))
         date = datetime.now().strftime("%Y.%m.%d %H:%M")
         if(len(users)==0):
@@ -675,18 +696,14 @@ def termToStr(objects):
     return objects
 
 
-"""        check data        """
+"""        functions        """
+def createCSRF():
+    randomStr = "".join([random.choice(string.ascii_letters+string.digits) for _ in range(10)])
+    return hashlib.sha256(randomStr.encode()).hexdigest()
+    
 def checkId(_id):
     return _id.isdigit() and len(_id) == 8
 
-def checkUser(**kwargs):
-    if('userId' in kwargs and not checkId(kwargs['userId'])):
-        return "user id is not matched format"
-    if('pw' in kwargs and not kwargs['pw'] or 20 < len(kwargs['pw'])):
-        return "pw is empty or too long"
-    if('name' in kwargs and not kwargs['name'] or 5 < len(kwargs['name'])):
-        return "name is empty or too long"
-    return "OK"
 
 def checkDocument(**kwargs):
     if('docId' in kwargs and not kwargs['docId'].isdigit()):

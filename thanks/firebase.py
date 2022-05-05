@@ -15,7 +15,7 @@ def sendNotice(title, content, date):
     )
     response = messaging.send(message)
     
-def readChat(users,receiverId, senderId): # push를 받은 사람의 채팅방에 들어갔을 경우
+def readChat(users, senderId): # push를 받은 사람의 채팅방에 들어갔을 경우
     for token in users:
         message = messaging.Message(
             data={

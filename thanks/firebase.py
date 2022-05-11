@@ -39,6 +39,21 @@ def sendChat(users,senderId, content, name,date): # push를 받은 사람한테 
             token=user['token']
         )
         sendAndCatchErr(message,user['token'])
+        
+def sendReject(users, term, isMentor, title, content):
+    for user in users:
+        message = messaging.Message(
+            data={
+                'category': 'mentoringReject',
+                'title':senderId,
+                'content':content,
+                'term':term,
+                'isMentor': 1 if isMentor else 0,
+            },
+            token=user['token']
+        )
+        sendAndCatchErr(message,user['token'])
+        
     
 def sendAndCatchErr(message, token):
     try:

@@ -113,7 +113,7 @@
                             <button type="button" class="btn btn-primary" 
                                     onclick="location.href='./acceptSignup?signupType={{type}}&userId={{obj.userId}}'">승인</button>
                             <button type="button" class="btn btn-secondary" 
-                                    onclick="openReject({{obj.userId}},'{{obj.mentorId}}{{obj.menteeId}}');">거절</button>
+                                    onclick="openReject({{obj.userId}},'{{obj.mentorId}}{{obj.menteeId}},{{obj.term__id}} ');">거절</button>
                         </div>
                     </a>
                     {% endfor %}
@@ -197,7 +197,7 @@ onclick="openPopup('/adminSearch?type=1&id={{obj.menteeId}}&term={{obj.term__id}
                 location.reload();
             });
         }
-        function openReject(userId,menId){
+        function openReject(userId,menId,term){
             if (event.stopPropagation)
                 event.stopPropagation();
             else 
@@ -205,7 +205,7 @@ onclick="openPopup('/adminSearch?type=1&id={{obj.menteeId}}&term={{obj.term__id}
             
             var reason = prompt('거절 사유');
             if(reason){
-                location.href= "./acceptReject/?userId="+userId+"&reason="+reason+"&menId="+menId+"&type={{type}}"
+                location.href= "./acceptReject/?userId="+userId+"&reason="+reason+"&menId="+menId+"&type={{type}}&term="+term+"&type={{type}}"
             }
         }
     </script>

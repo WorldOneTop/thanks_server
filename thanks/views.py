@@ -1,6 +1,6 @@
 from django.shortcuts import render
 from django.http import HttpResponse
-from .models import User, Mentor, Mentee, Document, Manager, Signup, Term, Reject, Message, Notice
+from .models import User, Mentor, Mentee, Document, Manager, Signup, Term, Message, Notice
 import json
 from django.core.exceptions import *
 from django.shortcuts import render
@@ -32,46 +32,38 @@ def onNewToken(request): # args : token=""    // 굳이 할필요 없음(로그�
     return HttpResponse('{"status":"OK"}')
 
 
-"""        USER        """
-# def createUser(request): # args : {userId: 8자리 숫자, pw, name }
-#     try:
-#         catchError = checkUser(**(request.GET.dict()))
-#         if(catchError != "OK"):
-#             return HttpResponse('{"status":"'+catchError+'"}')
-        
-#         data = {'userId':request.GET['userId'], 'pw': request.GET['pw'], 'name':request.GET['name']}
-        
-#         User.objects.create(**data)
-#     except KeyError:
-#         return HttpResponse('{"status":"not enough data"}')
-#     except IntegrityError:
-#         return HttpResponse('{"status":"already exist user"}')
-    
-#     return HttpResponse('{"status":"OK"}')
 
+"""        USER        """
 def userLogin(request): # args : {userId, pw, token}
     try:
-        user = User.objects.get(pk=request.GET['userId'])
-        token = Message.objects.get(pk=request.GET['token'])
-        
-        if(token.userId != user):
-            token.userId = user
-        
+        # with connections['oracle_db'].cursor() as cursor:
+        #     cursor.execute("select ILBAN.NF_USER_LOGIN('S','"+request.GET['userId']+"','"+request.GET['pw']+"') from dual;")
+        #     if(cursor.fetchall()[0][0] != 'true'):
+        #         return HttpResponse('{"status":"User does not find"}')
+
+        user = User.objects.filter(pk=request.GET['userId'])
+
+        # if(len(user) < 1):
+        #     data = {'userId':id, 'name':' ',status:1}
+        #     user =  User.objects.create(**data)
+        # else:
+        user = user[0]
+
         user.CSRF = createCSRF()
         user.save()
-        
+
+        token = Message.objects.get(pk=request.GET['token'])
+        if(token.userId != user):
+            token.userId = user
+
         token.registerDate = datetime.today()
         token.save()
-        
-        # if(user.pw != request.GET['pw']):
-        #     return HttpResponse('{"status":"Password does not matched"}')
+
     except KeyError:
-        return HttpResponse('{"status":"not enough data"}')    
-    except User.DoesNotExist:
-        return HttpResponse('{"status":"User does not exist"}')
+        return HttpResponse('{"status":"not enough data"}')
     except Message.DoesNotExist:
         Message.objects.create(pk=request.GET['token'], userId=user)
-    
+
     return HttpResponse('{"status":"OK","userStatus":'+str(user.status)+',"CSRF":"'+user.CSRF+'"}') # return : status:OK userStatus:0, CSRF:asdf
 
 def accountInfo(request): # args : userId, CSRF
@@ -113,8 +105,6 @@ def createSignup(request): # args : userId, term(기수), userType(1:멘토,0:�
         
         user = User.objects.get(pk=request.GET['userId'],CSRF=request.GET['CSRF'])
         
-        if(user.status == 0):
-            return HttpResponse('{"status":"user is not activated"}')  # 여기 변경됨@@@@@@@@@@@@@@@@@ 처리 X
         if(user.status != 1):
             return HttpResponse('{"status":"user is already have type"}')
         if(request.GET['userType'] == 1 and not Mentee.objects.filter(userId=request.GET['userId'])):
@@ -488,13 +478,18 @@ def updateTerm(request):
     if(data['activated'] == '' and term[0].activated != None): # 활동 종료로 변경
         delMentor = Mentor.objects.filter(term=request.GET['id'], activated=False)
         delMentee = Mentee.objects.filter(term=request.GET['id'], activated=False)
-        
+        title = request.GET['id']"기 멘토링 모집 종료"
+        content = request.GET['id']"기 멘토링 모집 종료로 인하여 멘토링 신청이 거절되었습니다."
         for row in delMentor:
-            Reject.objects.create(**{'userId':row.userId_id,'reason':request.GET['id']+'기 모집 종료'})
+            users = list(Message.objects.filter(userId=request.GET['userId']).values('token'))
+            firebase.sendReject(users, request.GET['id'], True, title, content)
+
             row.userId.status = 1
             row.userId.save()
         for row in delMentee:
-            Reject.objects.create(**{'userId':row.userId_id,'reason':request.GET['id']+'기 모집 종료'})
+            users = list(Message.objects.filter(userId=request.GET['userId']).values('token'))
+            firebase.sendReject(users, request.GET['id'], True, title, content)
+
             row.userId.status = 1
             row.userId.save()
             
@@ -599,12 +594,6 @@ def acceptSignup(request): # args : signupType, userId (없으면 전부다 승�
             user.save()
             user.userId.status = 5
             user.userId.save()
-            
-    elif(request.GET['signupType'] == '3'): # 매칭?
-        if('userId' not in request.GET):
-            pass
-        else:
-            pass
         
     return HttpResponse("<script>alert('승인되었습니다.');location.href = document.referrer;</script>")
 
@@ -629,19 +618,26 @@ def adminMatched(request):
 # 가입 or 멘토 or 멘티 거절
 def acceptReject(request): 
     user = User.objects.get(pk=request.GET['userId'])
-    if(request.GET['type'] == '0'): # 가입 거절
-        user.delete()
-    else:
-        user.status = 1
-        user.save()
-        if(request.GET['type'] == '1'): # 멘토 신청 거절
-            Mentor.objects.get(pk=request.GET['menId']).delete()
-        elif(request.GET['type'] == '2'): # 멘티 신청 거절
-            Mentee.objects.get(pk=request.GET['menId']).delete()
+    user.status = 1
+    user.save()
+    
+    users = list(Message.objects.filter(userId=request.GET['userId']).values('token'))
+    title = request.GET['term']+"기 멘토링 "
+    if(request.GET['type'] == 1):
+        title += "멘토"
+    elif(request.GET['type'] == 2):
+        title += "멘티"
+    title += " 승인이 거부되었습니다."
+
+    firebase.sendReject(users, request.GET['term'], request.GET['type'] == 1, title, request.GET['reason'])
+    
+    if(request.GET['type'] == '1'): # 멘토 신청 거절
+        Mentor.objects.get(pk=request.GET['menId']).delete()
+    elif(request.GET['type'] == '2'): # 멘티 신청 거절
+        Mentee.objects.get(pk=request.GET['menId']).delete()
         
-        
-    Reject.objects.create(**{'userId':request.GET['userId'],'reason':request.GET['reason']})
-    return HttpResponse("<script>alert('거절되었습니다.');location.href = document.referrer;</script>")
+    
+    return HttpResponse("<script>alert('완료되었습니다.');location.href = document.referrer;</script>")
 
 
 

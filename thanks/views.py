@@ -478,8 +478,8 @@ def updateTerm(request):
     if(data['activated'] == '' and term[0].activated != None): # 활동 종료로 변경
         delMentor = Mentor.objects.filter(term=request.GET['id'], activated=False)
         delMentee = Mentee.objects.filter(term=request.GET['id'], activated=False)
-        title = request.GET['id']"기 멘토링 모집 종료"
-        content = request.GET['id']"기 멘토링 모집 종료로 인하여 멘토링 신청이 거절되었습니다."
+        title = request.GET['id']+ "기 멘토링 모집 종료"
+        content = request.GET['id']+"기 멘토링 모집 종료로 인하여 멘토링 신청이 거절되었습니다."
         for row in delMentor:
             users = list(Message.objects.filter(userId=request.GET['userId']).values('token'))
             firebase.sendReject(users, request.GET['id'], True, title, content)

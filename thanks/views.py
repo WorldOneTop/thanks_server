@@ -14,6 +14,7 @@ import os
 from datetime import datetime
 from django.db.models import Count
 import random, string, hashlib # 토큰발행
+from django.db import connections
 
 
 

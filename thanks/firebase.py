@@ -45,7 +45,7 @@ def sendReject(users, term, isMentor, title, content):
         message = messaging.Message(
             data={
                 'category': 'mentoringReject',
-                'title':senderId,
+                'title':title,
                 'content':content,
                 'term':term,
                 'isMentor': 1 if isMentor else 0,

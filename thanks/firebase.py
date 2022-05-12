@@ -47,8 +47,20 @@ def sendReject(users, term, isMentor, title, content):
                 'category': 'mentoringReject',
                 'title':title,
                 'content':content,
-                'term':term,
-                'isMentor': 1 if isMentor else 0,
+                'term':str(term),
+                'isMentor': "1" if isMentor else "0",
+            },
+            token=user['token']
+        )
+        sendAndCatchErr(message,user['token'])
+        
+def sendAccept(users, isMentor, title):
+    for user in users:
+        message = messaging.Message(
+            data={
+                'category': 'mentoringAccept',
+                'title':title,
+                'isMentor': "1" if isMentor else "0",
             },
             token=user['token']
         )
@@ -60,4 +72,6 @@ def sendAndCatchErr(message, token):
         messaging.send(message)
         
     except messaging.UnregisteredError as e: # 유효하지 않은 토큰 https://firebase.google.com/docs/reference/admin/python/firebase_admin.messaging?hl=ko
+        Message.objects.get(pk=token).delete()
+    except e:
         Message.objects.get(pk=token).delete()

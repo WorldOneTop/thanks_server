@@ -108,8 +108,8 @@ def createSignup(request): # args : userId, term(기수), userType(1:멘토,0:�
         
         if(user.status != 1):
             return HttpResponse('{"status":"user is already have type"}')
-        if(request.GET['userType'] == 1 and not Mentee.objects.filter(userId=request.GET['userId'])):
-            return HttpResponse('{"status":"user have never been mentee"}')
+        if(request.GET['userType'] == '1' and 1 > len(Mentee.objects.filter(userId=request.GET['userId']))):
+            return HttpResponse('{"status":"user have never been mentee"}') 
         
         term = Term.objects.get(pk=request.GET['term'])
         if(term.activated != False):
@@ -476,7 +476,32 @@ def updateTerm(request):
     data = request.POST.dict()
     data.pop('csrfmiddlewaretoken')
     term = Term.objects.filter(pk=request.GET['id'])
-    if(data['activated'] == '' and term[0].activated != None): # 활동 종료로 변경
+    
+    if(term[0].activated == False and data['activated'] == '1'): # 모집중 -> 활동중
+        # 매칭이 되지 않은 승인된 멘토, 멘티들과 멘토, 멘티 대기자들 거절
+        delMentor = Mentor.objects.filter(term=request.GET['id'], matchedNum=0)
+        delMentee = Mentee.objects.filter(term=request.GET['id'], mentorId=None)
+        title = request.GET['id']+ "기 멘토링 모집 종료"
+        content = request.GET['id']+"기 멘토링 활동 시작까지 매칭이 되지 않아 신청이 거절되었습니다."
+        for row in delMentor:
+            users = list(Message.objects.filter(userId=row.userId).values('token'))
+            firebase.sendReject(users, request.GET['id'], True, title, content)
+
+            row.userId.status = 1
+            row.userId.save()
+        for row in delMentee:
+            users = list(Message.objects.filter(userId=row.userId).values('token'))
+            firebase.sendReject(users, request.GET['id'], True, title, content)
+
+            row.userId.status = 1
+            row.userId.save()
+            
+        delMentor.delete()
+        delMentee.delete()
+    
+    
+    elif(data['activated'] == '' and term[0].activated != None): # 활동 종료로 변경
+        # 승인 안된 멘토, 멘티 대기자들 거절
         delMentor = Mentor.objects.filter(term=request.GET['id'], activated=False)
         delMentee = Mentee.objects.filter(term=request.GET['id'], activated=False)
         title = request.GET['id']+ "기 멘토링 모집 종료"
@@ -497,6 +522,8 @@ def updateTerm(request):
         delMentor.delete()
         delMentee.delete()
         
+        
+        # 멘토링과정 유저들 정상 상태로
         mentorRows = Mentor.objects.select_related('userId').filter(term=request.GET['id'])
         mentorRows.update(activated=None)
         for row in mentorRows:
@@ -563,17 +590,7 @@ def checkLogin(request):
 
 # 가입 or 멘토 or 멘티 승인 (signupType 0, 1, 2)
 def acceptSignup(request): # args : signupType, userId (없으면 전부다 승인)
-    if(request.GET['signupType'] == '0'): #가입
-        if('userId' not in request.GET):
-            users = User.objects.filter(status=0)
-        else:
-            users = User.objects.filter(pk=request.GET['userId'])    
-            
-        for user in users:
-            user.status = 1
-            user.save()
-
-    elif(request.GET['signupType'] == '1'): # 멘토
+    if(request.GET['signupType'] == '1'): # 멘토
         if('userId' not in request.GET):
             users = Mentor.objects.filter(activated=False)
         else:
@@ -595,6 +612,15 @@ def acceptSignup(request): # args : signupType, userId (없으면 전부다 승�
             user.save()
             user.userId.status = 5
             user.userId.save()
+    
+    title = "감사 운동 멘토링의 "
+    if(request.GET['signupType'] == '1'):
+        title += "멘토"
+    else:
+        title += "멘티"
+    title += "로 선발되었습니다."
+    
+    firebase.sendAccept(users, request.GET['signupType'] == '1', title)
         
     return HttpResponse("<script>alert('승인되었습니다.');location.href = document.referrer;</script>")
 

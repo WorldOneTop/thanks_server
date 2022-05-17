@@ -3,10 +3,11 @@ from .models import Message
 
 # 공지사항 알람 받으려면 "notice" 구독해야함
 
-def sendNotice(title, content, date):
+def sendNotice(_id, title, content, date):
     message = messaging.Message(
         data={
             'category': 'notice',
+             'id':str(_id),
              'title':title,
              'body':content,
             'date' : date
@@ -54,12 +55,13 @@ def sendReject(users, term, isMentor, title, content):
         )
         sendAndCatchErr(message,user['token'])
         
-def sendAccept(users, isMentor, title):
+def sendAccept(users, isMentor, title, status):
     for user in users:
         message = messaging.Message(
             data={
                 'category': 'mentoringAccept',
                 'title':title,
+                'userStatus':str(status),
                 'isMentor': "1" if isMentor else "0",
             },
             token=user['token']

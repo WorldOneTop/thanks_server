@@ -573,7 +573,8 @@ def acceptSignup(request): # args : signupType, userId (없으면 전부다 승�
         user.userId.save()
         
         users = list(Message.objects.filter(userId=user.userId).values('token'))
-        title = "감사운동 멘토링의 " + ("멘토" if isMentor else "멘티") + "로 선발되었습니다."
+        title = "감사운동 멘토링의 " + ("멘토" if isMentor else "멘티")
+        title += "로 선발되었습니다."
         firebase.sendAccept(users, isMentor, title, 4 if isMentor else 5)
         
     return HttpResponse("<script>alert('승인되었습니다.');location.href = document.referrer;</script>")

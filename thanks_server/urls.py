@@ -19,6 +19,7 @@ urlpatterns = [
     path('getMenteesDoc/', views.getMenteesDoc),
     path('selectDocument/', views.selectDocument),
     path('getNotice/', views.getNotice),
+    path('getChatUserList/', views.getChatUserList),
     path('readChat/', views.readChat),
     path('sendChat/', views.sendChat),
     

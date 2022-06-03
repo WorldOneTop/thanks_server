@@ -222,7 +222,7 @@ def deleteDocument(request): # args : docId
 def getMenteesDoc(request): # args : userId, date:yyyy-mm-dd, CSRF
     try:
         userId = User.objects.get(pk=request.GET['userId'],CSRF=request.GET['CSRF']).userId
-        mentorId = Mentor.objects.filter(userId=userId).exclude(term__activated=None).order_by("term__id").values("mentorId").last()
+        mentorId = Mentor.objects.filter(userId=userId).exclude(term__activated=None).order_by("mentorId").values("mentorId").last()
         if(mentorId==None):
             return HttpResponse('{"status":"mentor does not exist"}')
         
@@ -238,8 +238,6 @@ def getMenteesDoc(request): # args : userId, date:yyyy-mm-dd, CSRF
         return HttpResponse('{"status":"not enough data"}')
     except User.DoesNotExist:
         return HttpResponse('{"status":"user does not exist"}')
-    except Term.DoesNotExist:
-        return HttpResponse('{"status":"term does not exist"}')
     result = json.dumps(result, ensure_ascii=False)
     return HttpResponse('{"status":"OK","data":'+result+'}') # return {status, data : [{"userId":0,"userId__name":"","term":0,"thanks":0,"kind":0, "save":0, "book":0,}, ...]}
 
@@ -252,7 +250,32 @@ def getNotice(request): # args : X , 성능 이슈 예상으로 최대 최근 10
     return HttpResponse('{"status":"OK","data":'+result+'}') # return : ['title':'','content':'','registerDate':'']
 
 """        CHANTTING        """
-
+def getChatUserList(request): # args : userId, CSRF
+    try:
+        user = User.objects.get(pk=request.GET['userId'],CSRF=request.GET['CSRF'])
+        if(user.status == 4): # 멘토
+            mentor = Mentor.objects.filter(userId=user.userId).exclude(term__activated=None).order_by("mentorId").values("mentorId").last()
+        elif(user.status == 5): # 멘티
+            mentor = Mentee.objects.filter(userId=user.userId).exclude(term__activated=None).order_by("menteeId").values("mentorId","mentorId__userId__name").last()
+        else: # 현재 멘토링X
+            return HttpResponse('{"status":"OK", "data":[]}')
+        
+        if(mentor==None):
+            return HttpResponse('{"status":"OK", "data":[]}')
+        
+        if(user.status == 4):
+            result = list(Mentee.objects.filter(mentorId=mentor['mentorId']).values("userId","userId__name"))
+        if(user.status == 5):
+            result = [{"userId":mentor['mentorId'], "userId__name":mentor['mentorId__userId__name']}]
+        
+    except KeyError:
+        return HttpResponse('{"status":"not enough data"}')
+    except User.DoesNotExist:
+        return HttpResponse('{"status":"user does not exist"}')
+    result = json.dumps(result, ensure_ascii=False)
+    return HttpResponse('{"status":"OK","data":'+result+'}') # return {status, data : [{"userId":0,"userId__name":""}, ...]}
+    
+    
 def readChat(request): # args: senderId, receiverId, CSRF
     try:
         userId = User.objects.get(pk=request.GET['senderId'],CSRF=request.GET['CSRF']).id
@@ -314,7 +337,7 @@ def admin(request):
     result['noticeLen'] = Notice.objects.all().count()
     
     
-    with open(BASE_DIR+'/waitSignup.json', 'r') as f:
+    with open(BASE_DIR+'/waitSignup.json', 'r',encoding='utf-8-sig') as f:
         jf = json.load(f)
         result['waitSignup'] = jf
         result['waitSignupLen'] = len(jf) -1

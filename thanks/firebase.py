@@ -21,7 +21,7 @@ def readChat(users, senderId): # push를 받은 사람의 채팅방에 들어갔
         message = messaging.Message(
             data={
                 'category': 'readChat',
-                'senderId': senderId,
+                'senderId': str(senderId),
             },
             token=token['token']
         )
@@ -73,7 +73,8 @@ def sendAndCatchErr(message, token):
     try:
         messaging.send(message)
         
-    except messaging.UnregisteredError as e: # 유효하지 않은 토큰 https://firebase.google.com/docs/reference/admin/python/firebase_admin.messaging?hl=ko
+    except messaging.UnregisteredError: # 유효하지 않은 토큰 https://firebase.google.com/docs/reference/admin/python/firebase_admin.messaging?hl=ko
         Message.objects.get(pk=token).delete()
-    except e:
-        Message.objects.get(pk=token).delete()
+    except:
+        pass
+        # Message.objects.get(pk=token).delete()

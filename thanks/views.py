@@ -256,7 +256,7 @@ def getChatUserList(request): # args : userId, CSRF
         if(user.status == 4): # 멘토
             mentor = Mentor.objects.filter(userId=user.userId).exclude(term__activated=None).order_by("mentorId").values("mentorId").last()
         elif(user.status == 5): # 멘티
-            mentor = Mentee.objects.filter(userId=user.userId).exclude(term__activated=None).order_by("menteeId").values("mentorId","mentorId__userId__name").last()
+            mentor = Mentee.objects.filter(userId=user.userId).exclude(term__activated=None).order_by("menteeId").values("mentorId__userId","mentorId__userId__name").last()
         else: # 현재 멘토링X
             return HttpResponse('{"status":"OK", "data":[]}')
         
@@ -266,7 +266,7 @@ def getChatUserList(request): # args : userId, CSRF
         if(user.status == 4):
             result = list(Mentee.objects.filter(mentorId=mentor['mentorId']).values("userId","userId__name"))
         if(user.status == 5):
-            result = [{"userId":mentor['mentorId'], "userId__name":mentor['mentorId__userId__name']}]
+            result = [{"userId":mentor['mentorId__userId'], "userId__name":mentor['mentorId__userId__name']}]
         
     except KeyError:
         return HttpResponse('{"status":"not enough data"}')
@@ -278,7 +278,7 @@ def getChatUserList(request): # args : userId, CSRF
     
 def readChat(request): # args: senderId, receiverId, CSRF
     try:
-        userId = User.objects.get(pk=request.GET['senderId'],CSRF=request.GET['CSRF']).id
+        userId = User.objects.get(pk=request.GET['senderId'],CSRF=request.GET['CSRF']).userId
         tokens = list(Message.objects.filter(userId=request.GET['receiverId']).values('token'))
         if(len(tokens)==0):
             return HttpResponse('{"status":"received user does not exist"}')

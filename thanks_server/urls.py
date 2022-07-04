@@ -6,9 +6,9 @@ from django.conf import settings
 
 
 urlpatterns = [
-    path('', views.index),
+    path('', views.index), 
+    path('privacy/', views.privacy),
     path('onNewToken/', views.onNewToken),
-    # path('createUser/', views.createUser),
     path('userLogin/', views.userLogin),
     path('accountInfo/', views.accountInfo),
     path('selectTerm/', views.selectTerm),

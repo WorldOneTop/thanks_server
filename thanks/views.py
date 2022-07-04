@@ -24,6 +24,8 @@ MAX_MENTEE = 5
 def index(request):
     return render(request, 'pre_register.html')
 
+def privacy(request):
+    return render(request, 'privacy_policy.html')
 """        FIREBASE    """
 def onNewToken(request): # args : token=""    // 굳이 할필요 없음(로그인에서 처리)
     try:
@@ -108,8 +110,8 @@ def createSignup(request): # args : userId, term(기수), userType(1:멘토,0:�
         
         if(user.status != 1):
             return HttpResponse('{"status":"user is already have type"}')
-        # if(request.GET['userType'] == '1' and 1 > len(Mentee.objects.filter(userId=request.GET['userId']))):
-        #     return HttpResponse('{"status":"user have never been mentee"}') 
+        if(request.GET['userType'] == '1' and 1 > len(Mentee.objects.filter(userId=request.GET['userId']))):
+            return HttpResponse('{"status":"user have never been mentee"}') 
         
         term = Term.objects.get(pk=request.GET['term'])
         if(term.activated != False):

@@ -732,6 +732,20 @@ def createCSRF():
 def checkId(_id):
     return _id.isdigit() and len(_id) == 8
 
+def checkVersion(request): # args: isAndroid
+    version = -1
+    with open(BASE_DIR+'/secrets.json', 'r') as f:
+        jf = json.load(f)
+        try:
+            if(request.GET['isAndroid'] =="1"):
+                version = jf['androidVersion']
+            elif(request.GET['isAndroid'] =="0"):
+                version = jf['iosVersion']
+            else:
+                return HttpResponse('{"status":"date format not recognized"}')
+        except KeyError:
+        	return HttpResponse('{"status":"not enough data"}')
+    return HttpResponse('{"status":"OK","version":%d}' % version)
 
 def checkDocument(**kwargs):
     if('docId' in kwargs and not kwargs['docId'].isdigit()):

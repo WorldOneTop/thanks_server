@@ -22,6 +22,7 @@ urlpatterns = [
     path('getChatUserList/', views.getChatUserList),
     path('readChat/', views.readChat),
     path('sendChat/', views.sendChat),
+    path('checkVersion/', views.checkVersion),
     
     # ADMIN
     path('preRegisterUpload/', views.preRegisterUpload),

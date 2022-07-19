@@ -37,7 +37,7 @@ def onNewToken(request): # args : token=""    // 굳이 할필요 없음(로그�
 
 
 """        USER        """
-def userLogin(request): # args : {userId, pw, token}
+def userLogin(request): # args : {userId, pw, token,ios=데이터 있으면}
     try:
         # with connections['oracle_db'].cursor() as cursor:
         #     cursor.execute("select ILBAN.NF_USER_LOGIN('S','"+request.GET['userId']+"','"+request.GET['pw']+"') from dual;")
@@ -45,7 +45,11 @@ def userLogin(request): # args : {userId, pw, token}
         #         return HttpResponse('{"status":"User does not find"}')
 
         user = User.objects.filter(pk=request.GET['userId'])
-
+        if('ios' in request.GET):
+            iOS = True
+        else:
+            iOS = False
+            
         if(len(user) < 1):
             data = {'userId':request.GET['userId'], 'name':' ','status':1}
             user =  User.objects.create(**data)
@@ -58,6 +62,8 @@ def userLogin(request): # args : {userId, pw, token}
         token = Message.objects.get(pk=request.GET['token'])
         if(token.userId != user):
             token.userId = user
+        if(token.ios != iOS):
+            token.ios = iOS
 
         token.registerDate = datetime.today()
         token.save()
@@ -65,7 +71,7 @@ def userLogin(request): # args : {userId, pw, token}
     except KeyError:
         return HttpResponse('{"status":"not enough data"}')
     except Message.DoesNotExist:
-        Message.objects.create(pk=request.GET['token'], userId=user)
+        Message.objects.create(pk=request.GET['token'], userId=user, ios=iOS)
 
     return HttpResponse('{"status":"OK","userStatus":'+str(user.status)+',"CSRF":"'+user.CSRF+'"}') # return : status:OK userStatus:0, CSRF:asdf
 
@@ -281,7 +287,7 @@ def getChatUserList(request): # args : userId, CSRF
 def readChat(request): # args: senderId, receiverId, CSRF
     try:
         userId = User.objects.get(pk=request.GET['senderId'],CSRF=request.GET['CSRF']).userId
-        tokens = list(Message.objects.filter(userId=request.GET['receiverId']).values('token'))
+        tokens = list(Message.objects.filter(userId=request.GET['receiverId']).values('token','ios'))
         if(len(tokens)==0):
             return HttpResponse('{"status":"received user does not exist"}')
             
@@ -296,7 +302,7 @@ def readChat(request): # args: senderId, receiverId, CSRF
 def sendChat(request): # args: senderId, receiverId, content, CSRF
     try:
         userName = User.objects.get(pk=request.GET['senderId'],CSRF=request.GET['CSRF']).name
-        users = list(Message.objects.filter(userId=request.GET['receiverId']).values('token'))
+        users = list(Message.objects.filter(userId=request.GET['receiverId']).values('token','ios'))
         date = datetime.now().strftime("%Y.%m.%d %H:%M")
         if(len(users)==0):
             return HttpResponse('{"status":"received user does not exist","date":"'+date+'"}')
@@ -326,7 +332,7 @@ def preRegisterUpload(request): # 파일 원형 : [["학번","학과","이름","
 
 def admin(request):
     if (not (request.session.get('id') or request.session.get('admin'))):
-        return redirect('/amdinLogin/');
+        return redirect('/amdinLogin/')
     result = {}
     result['userCount'] = User.objects.filter(status=0).count()
     result['mentorCount'] = Mentor.objects.filter(activated=False).count()
@@ -344,11 +350,11 @@ def admin(request):
         result['waitSignup'] = jf
         result['waitSignupLen'] = len(jf) -1
     
-    return render(request, 'overview.html', result);
+    return render(request, 'overview.html', result)
 
 def signupList(request):
     if (not (request.session.get('id') or request.session.get('admin'))):
-        return redirect('/amdinLogin/');
+        return redirect('/amdinLogin/')
     
     if('type' not in request.GET):
         result = {'type':'0'}
@@ -378,7 +384,7 @@ def signupList(request):
 
 def management(request):
     if (not (request.session.get('id') or request.session.get('admin'))):
-        return redirect('/amdinLogin/');
+        return redirect('/amdinLogin/')
     
     if('type' not in request.GET):
         result = {'type':'0'}
@@ -557,7 +563,7 @@ def checkLogin(request):
     try:
         if(Manager.objects.get(pk=request.POST['id']).pw == request.POST['pw']):
             request.session['id'] = request.POST['id']
-            return redirect('/admin/');
+            return redirect('/admin/')
     except Manager.DoesNotExist:
         pass
     except KeyError:
@@ -568,7 +574,7 @@ def checkLogin(request):
     if(jf['adminId'] == request.POST['id']):
         if(jf['adminPw'] == request.POST['pw']):
             request.session['admin'] = True
-            return redirect('/admin/');
+            return redirect('/admin/')
         
     return HttpResponse("<script>alert('아이디 또는 비밀번호가 일치하지 않습니다.');history.back();</script>")
 
@@ -597,7 +603,7 @@ def acceptSignup(request): # args : signupType, userId (없으면 전부다 승�
         user.userId.status = 4 if isMentor else 5
         user.userId.save()
         
-        users = list(Message.objects.filter(userId=user.userId).values('token'))
+        users = list(Message.objects.filter(userId=user.userId).values('token','ios'))
         title = "감사운동 멘토링의 " + ("멘토" if isMentor else "멘티")
         title += "로 선발되었습니다."
         firebase.sendAccept(users, isMentor, title, 4 if isMentor else 5)
@@ -628,7 +634,7 @@ def acceptReject(request):
     user.status = 1
     user.save()
     
-    users = list(Message.objects.filter(userId=request.GET['userId']).values('token'))
+    users = list(Message.objects.filter(userId=request.GET['userId']).values('token','ios'))
     title = request.GET['term']+"기 멘토링 "
     if(request.GET['type'] == 1):
         title += "멘토"
@@ -666,14 +672,14 @@ def deleteMentoringUser(termId):
     content = termId+"기 멘토링 활동까지 매칭이 되지 않아 신청이 거절되었습니다."
     
     for row in delMentor:
-        users = list(Message.objects.filter(userId=row.userId).values('token'))
+        users = list(Message.objects.filter(userId=row.userId).values('token','ios'))
         firebase.sendReject(users, termId, True, title, content)
 
         row.userId.status = 1
         row.userId.save()
     
     for row in delMentee:
-        users = list(Message.objects.filter(userId=row.userId).values('token'))
+        users = list(Message.objects.filter(userId=row.userId).values('token','ios'))
         firebase.sendReject(users, termId, True, title, content)
 
         row.userId.status = 1

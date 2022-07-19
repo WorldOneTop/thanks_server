@@ -69,6 +69,7 @@ class Message(models.Model):
     token = models.CharField(primary_key=True, max_length=255)
     userId = models.ForeignKey("User", on_delete=models.CASCADE,null=True)
     registerDate = models.DateField(auto_now_add=True, auto_now=False)
+    ios = models.BooleanField(default = False) # true: iOS, false: Android
     
 class Notice(models.Model):
     title = models.CharField(max_length=50)

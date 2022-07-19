@@ -44,7 +44,6 @@
                             <li><a class="dropdown-item" href="/management/?type=1">기수 관리</a></li>
                             <li><a class="dropdown-item" href="/management/?type=2">매니저 관리</a></li>
                             <li><a class="dropdown-item" href="/management/?type=3">비밀번호 변경</a></li>
-                            <li><a class="dropdown-item" href="/management/?type=5">전체 글 관리</a></li>
                         </ul>
                     </li>
                     <a class="nav-link " href="/amdinLogout/" role="button" aria-expanded="false">
@@ -244,51 +243,6 @@
                         <textarea name="content"  placeholder="내용" style="width:50%;display: block;min-height:50px;margin:5px;"></textarea>
                         <button name="button" type="submit" class="btn btn-primary" style="margin:5px;font-size:0.8em;">등록</button>
                     </form>
-                </center>
-                <ol class="list-group list-group-numbered">
-                    {% for obj in data %}
-                    <a class="list-group-item d-flex justify-content-between align-items-start"
-                       onclick="openNotice(this)" value="0">
-                        <div class="ms-2 me-auto">
-                            <div class="fw-bold">
-                                {{obj.title}}
-                            </div>
-                            <span style="font-size: 0.9em;color: grey;">
-                                개시일 : {{obj.registerDate}}
-                            </span>
-                            <div style="display:none;">
-                            <div class="fw-bold" style="margin-bottom:5px;">
-                                <br>
-                                {{obj.title}}
-                            </div>
-                                {{obj.content | linebreaksbr}}
-                            </div>
-                        </div>
-                        <div class="col position-absolute top-50 end-0 translate-middle-y me-2" style="vertical-align: top;height: 100%;margin:10px;">
-                            <button type="button" class="btn btn-primary" 
-                                    onclick="location.href='./removeNotice?id={{obj.id}}'">삭제</button>
-                        </div>
-                    </a>
-                    {% endfor %}
-                </ol>
-                {% endif %}
-                {% if type == '5' %}
-                
-                <center style="padding:30px;">
-                    조건 검색 
-                        <select style="height:2em;" id="searchAs">
-                            <option value=0>이름</option>
-                            <option value=1>학번</option>
-                            <option value=2>글 번호</option>
-                        </select>
-                    <input id="searchQuery" type="text" placeholder="검색어" style="width:6em;height:2em;"
-                           onkeyup="if(window.event.keyCode==13){userFilter();}">
-                    <input id="date" type="date" >
-                           <br>
-                    <button type="button" class="btn btn-secondary" style="margin-bottom:5px;font-size:0.8em;"
-                            onclick="userFilter();">검색</button>
-                
-                    
                 </center>
                 <ol class="list-group list-group-numbered">
                     {% for obj in data %}

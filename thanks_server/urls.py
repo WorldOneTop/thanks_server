@@ -39,6 +39,7 @@ urlpatterns = [
     path('management/', views.management),
     path('management/appendNotice/', views.appendNotice),
     path('management/removeNotice/', views.removeNotice),
+    path('management/removeDocument/', views.removeDocument),
     path('management/appendTerm/', views.appendTerm),
     path('management/updateTerm/', views.updateTerm),
     path('management/manager/', views.manager),

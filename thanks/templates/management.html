@@ -77,6 +77,9 @@
                     <li class="nav-item">
                         <a class="nav-link {% if type == '3' %}active{% endif %}" href="./?type=3">비밀번호 변경</a>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if type == '5' %}active{% endif %}" href="./?type=5">전체 글 관리</a>
+                    </li>
                 </ul>
                 {% if type == '0' %}
                 <center style="padding:30px;">
@@ -276,17 +279,19 @@
                 
                 <center style="padding:30px;">
                     조건 검색 
-                        <select style="height:2em;" id="searchAs">
-                            <option value=0>이름</option>
-                            <option value=1>학번</option>
-                            <option value=2>글 번호</option>
+                    <form action="" method="get">
+                        <input type="hidden" name="type" value="5">
+                        <select style="height:2em;" name="searchAs">
+                            <option value='userId'>학번</option>
+                            <option value='docId' {% if searchAs == "docId" %} selected{% endif %}>글 번호</option>
                         </select>
-                    <input id="searchQuery" type="text" placeholder="검색어" style="width:6em;height:2em;"
-                           onkeyup="if(window.event.keyCode==13){userFilter();}">
-                    <input id="date" type="date" >
-                           <br>
-                    <button type="button" class="btn btn-secondary" style="margin-bottom:5px;font-size:0.8em;"
-                            onclick="userFilter();">검색</button>
+                        <input name="searchQuery" type="text" placeholder="검색어" style="width:6em;height:2em;"
+                               value="{{ searchQuery }}">
+                        <input name="date" type="date" value="{{ date }}" placeholder="yyyy-mm-dd">
+                        <button type="submit" class="btn btn-secondary" style="margin-bottom:5px;font-size:0.8em;">검색</button>
+                    </form>
+                        
+                    
                 
                     
                 </center>
@@ -295,23 +300,22 @@
                     <a class="list-group-item d-flex justify-content-between align-items-start"
                        onclick="openNotice(this)" value="0">
                         <div class="ms-2 me-auto">
-                            <div class="fw-bold">
-                                {{obj.title}}
+                            <div class="fw-bold" style="overflow: hidden;height: 20pt;width: 90%;">
+                                {{obj.content}}
                             </div>
                             <span style="font-size: 0.9em;color: grey;">
-                                개시일 : {{obj.registerDate}}
+                                작성자 : {{obj.userId_id}} | 
+                                개시일 : {{obj.registerDate}} |
+                                작성 형태 : {{obj.docType}} 
+                                
                             </span>
                             <div style="display:none;">
-                            <div class="fw-bold" style="margin-bottom:5px;">
-                                <br>
-                                {{obj.title}}
-                            </div>
                                 {{obj.content | linebreaksbr}}
                             </div>
                         </div>
                         <div class="col position-absolute top-50 end-0 translate-middle-y me-2" style="vertical-align: top;height: 100%;margin:10px;">
                             <button type="button" class="btn btn-primary" 
-                                    onclick="location.href='./removeNotice?id={{obj.id}}'">삭제</button>
+                                    onclick="location.href='./removeDocument?id={{obj.docId}}'">삭제</button>
                         </div>
                     </a>
                     {% endfor %}
@@ -396,7 +400,6 @@
             first = true;
             
             for(var i=0;i<objs.length;i++){
-                console.log(objs[i].value +"    "+ filterStatus.value)
                 objs[i].style.borderTopWidth = 0;
                 if(filterId.value && (objs[i].id+"").indexOf(filterId.value) == -1 ){
                     objs[i].style.setProperty("display", "none", "important");

@@ -405,7 +405,22 @@ def management(request):
         pass
     elif(result['type'] == '4'):
         result['data'] = list(Notice.objects.all().order_by('-id').values())
-    
+    elif(result['type'] == '5'):
+        if('searchAs' in request.GET):
+            result['searchAs'] = request.GET['searchAs']
+            result['searchQuery'] = request.GET['searchQuery']
+            result['date'] = request.GET['date']
+            data = {}
+            if(result['searchQuery']):
+            	data = {result['searchAs'] : result['searchQuery']}
+            if(result['date']):
+                data['registerDate'] = result['date']
+            try:
+                result['data'] = Document.objects.filter(**data).values().order_by('-docId')
+                docToStr(result['data'])
+            except ValidationError:
+                return HttpResponse("<script>alert('날짜를 올바르게 입력하세요.');location.href = document.referrer;</script>")
+
     return render(request, 'management.html', result)
 
 def amdinLogin(request):
@@ -494,6 +509,11 @@ def appendNotice(request):
 def removeNotice(request):
     Notice.objects.filter(pk=request.GET['id']).delete()
     return HttpResponse("<script>alert('삭제되었습니다.');location.href = document.referrer;</script>")
+
+def removeDocument(request):
+    Document.objects.filter(pk=request.GET['id']).delete()
+    return HttpResponse("<script>alert('삭제되었습니다.');location.href = document.referrer;</script>")
+    
 
 def appendTerm(request):
     data = request.POST.dict()
@@ -663,7 +683,7 @@ def getUserData():
     #     'userId','userId__name','term__year','term__semester','term__id','userId__registerDate','mentorId__userId'))
             
     return q0 #+ q1 + q2
-
+    
 def deleteMentoringUser(termId):
     # 매칭이 되지 않은 승인된 멘토, 멘티들과 멘토, 멘티 대기자들 거절
     delMentor = Mentor.objects.filter(term=termId, matchedNum=0)
@@ -729,6 +749,16 @@ def termToStr(objects):
             obj['activated'] = '모집 중'
     return objects
 
+def docToStr(objects):
+    for obj in objects:
+        if(obj['docType'] == 0):
+            obj['docType'] = '감사 글'
+        elif(obj['docType'] == 1):
+            obj['docType'] = '절약 글'
+        elif(obj['docType'] == 2):
+            obj['docType'] = '선행 글'
+        elif(obj['docType'] == 3):
+            obj['docType'] = '독후감'
 
 """        functions        """
 def createCSRF():
